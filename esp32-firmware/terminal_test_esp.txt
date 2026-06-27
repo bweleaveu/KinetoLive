@@ -1,0 +1,65 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Try the new cross-platform PowerShell https://aka.ms/pscore6
+
+PS C:\Users\Asus> pip install websocket-client
+Requirement already satisfied: websocket-client in .\appdata\local\programs\python\python310\lib\site-packages (1.9.0)
+
+[notice] A new release of pip is available: 26.0.1 -> 26.1.2
+[notice] To update, run: python.exe -m pip install --upgrade pip
+PS C:\Users\Asus> cd D:\Personal\FAKULTHA\AC\anul4\LICENTA\KinetoLive
+PS D:\Personal\FAKULTHA\AC\anul4\LICENTA\KinetoLive> python tools\replay_bno055_file_ws.py --file recordings\real_e6_e6_20260622_231230.txt --session-id 50 --skip-zero
+Conectare la WebSocket: ws://localhost:8080/ws/sensor
+Trimis sample 1116
+Replay terminat.
+Sample-uri trimise: 1116
+Linii ignorate: 10
+PS D:\Personal\FAKULTHA\AC\anul4\LICENTA\KinetoLive> python tools\replay_bno055_file_ws.py --file recordings\real_e6_e6_20260622_231230.txt --session-id 50 --skip-zero
+Conectare la WebSocket: ws://localhost:8080/ws/sensor
+Traceback (most recent call last):
+  File "D:\Personal\FAKULTHA\AC\anul4\LICENTA\KinetoLive\tools\replay_bno055_file_ws.py", line 134, in <module>
+    main()
+  File "D:\Personal\FAKULTHA\AC\anul4\LICENTA\KinetoLive\tools\replay_bno055_file_ws.py", line 122, in main
+    time.sleep(delay_seconds)
+KeyboardInterrupt
+PS D:\Personal\FAKULTHA\AC\anul4\LICENTA\KinetoLive> python tools\replay_bno055_file_ws.py --file recordings\real_e6_e6_20260622_231230.txt --session-id 51 --skip-zero
+Conectare la WebSocket: ws://localhost:8080/ws/sensor
+Trimis sample 1116
+Replay terminat.
+Sample-uri trimise: 1116
+Linii ignorate: 10
+PS D:\Personal\FAKULTHA\AC\anul4\LICENTA\KinetoLive> python tools\replay_bno055_file_ws.py --file recordings\real_e6_e6_20260622_231230.txt --session-id 55 --skip-zero
+Conectare la WebSocket: ws://localhost:8080/ws/sensor
+Trimis sample 1116
+Replay terminat.
+Sample-uri trimise: 1116
+Linii ignorate: 10
+PS D:\Personal\FAKULTHA\AC\anul4\LICENTA\KinetoLive> Invoke-RestMethod -Method Delete http://localhost:8080/api/live-sessions/8/samples
+
+sessionId sampleCount active
+--------- ----------- ------
+        8           0  False
+
+
+PS D:\Personal\FAKULTHA\AC\anul4\LICENTA\KinetoLive> # Trimite fisierul real catre exact sesiunea curenta
+>> python tools\replay_bno055_file_ws.py --file recordings\real_e6_e6_20260622_231230.txt --session-id 8 --skip-zero
+Conectare la WebSocket: ws://localhost:8080/ws/sensor
+Trimis sample 1116
+Replay terminat.
+Sample-uri trimise: 1116
+Linii ignorate: 10
+PS D:\Personal\FAKULTHA\AC\anul4\LICENTA\KinetoLive> python tools\stream_bno055_serial_ws.py --port COM11 --session-id 56 --skip-zero
+Conectare la Serial: COM11
+Conectare la WebSocket: ws://localhost:8080/ws/sensor
+Inchide Serial Monitor din Arduino IDE inainte de rulare.
+Streaming pornit.
+Executa exercitiul acum.
+Apasa CTRL + C pentru oprire.
+Trimise: 740 | Ignorate: 9
+Streaming oprit manual.
+Sample-uri trimise: 740
+Linii ignorate: 9
+PS D:\Personal\FAKULTHA\AC\anul4\LICENTA\KinetoLive>
+
+

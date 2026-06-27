@@ -1,0 +1,8 @@
+# Dependinte pentru microserviciul Python ML
+fastapi
+uvicorn
+numpy
+scipy
+scikit-learn
+joblib
+pydantic

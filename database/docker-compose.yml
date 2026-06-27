@@ -1,0 +1,18 @@
+# Configurare PostgreSQL pentru KinetoLive
+services:
+  kinetolive-postgres:
+    image: postgres:16
+    container_name: kinetolive-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: kinetolive_db
+      POSTGRES_USER: kinetolive_user
+      POSTGRES_PASSWORD: kinetolive_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - kinetolive_postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+
+volumes:
+  kinetolive_postgres_data:
