@@ -240,6 +240,11 @@ class PredictionService:
             3: 0.0,
         }
 
+        # Daca doctorul a ales 6/7/8, calitatea se analizeaza cu modelul acelui exercitiu.
+        # Daca a ales 0 sau null, se face detectie automata si modelul de calitate se alege dupa exercitiul detectat.
+        selected_exercise_code = payload.selectedExerciseCode
+        manual_quality_mode = selected_exercise_code in self.quality_models
+
         for index, segment in enumerate(segments):
             features = extract_segment_features(segment, FS)
             x_segment = features.reshape(1, -1)
@@ -260,10 +265,16 @@ class PredictionService:
                 exercise_probabilities,
             )
 
-            if predicted_exercise_code not in self.quality_models:
+            quality_exercise_code = (
+                selected_exercise_code
+                if manual_quality_mode
+                else predicted_exercise_code
+            )
+
+            if quality_exercise_code not in self.quality_models:
                 continue
 
-            quality_model = self.quality_models[predicted_exercise_code]
+            quality_model = self.quality_models[quality_exercise_code]
 
             quality_classes, quality_probabilities = self.get_model_probabilities(
                 quality_model,

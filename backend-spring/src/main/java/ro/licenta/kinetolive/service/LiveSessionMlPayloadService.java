@@ -7,6 +7,9 @@ import ro.licenta.kinetolive.dto.MlAnalysisPayloadDto;
 import ro.licenta.kinetolive.dto.MlSignalSampleDto;
 import ro.licenta.kinetolive.dto.SensorSampleMessage;
 
+import ro.licenta.kinetolive.entity.TherapySession;
+import ro.licenta.kinetolive.repository.TherapySessionRepository;
+
 import java.util.List;
 
 @Service
@@ -26,8 +29,16 @@ public class LiveSessionMlPayloadService {
     );
 
     private final LiveSessionBufferService liveSessionBufferService;
+    private final TherapySessionRepository therapySessionRepository;
 
     public MlAnalysisPayloadDto buildMlPayload(Long sessionId) {
+        TherapySession therapySession = therapySessionRepository.findById(sessionId)
+                .orElseThrow(() -> new RuntimeException("Therapy session not found: " + sessionId));
+
+        Integer selectedExerciseCode = therapySession.getIntendedExercise() != null
+                ? therapySession.getIntendedExercise().getExerciseCode()
+                : null;
+
         List<SensorSampleMessage> bufferedSamples = liveSessionBufferService.getSamples(sessionId);
 
         List<MlSignalSampleDto> mlSamples = bufferedSamples
@@ -52,6 +63,7 @@ public class LiveSessionMlPayloadService {
                 durationSeconds,
                 readyForAnalysis,
                 message,
+                selectedExerciseCode,
                 FEATURE_COLUMNS,
                 mlSamples
         );

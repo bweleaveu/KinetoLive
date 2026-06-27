@@ -36,6 +36,14 @@ public class DatabaseSeeder implements CommandLineRunner {
     // Initializeaza exercitiile cu texte in romana si engleza
     private void seedExercises() {
         addOrUpdateExercise(
+                0,
+                "Detectie automata",
+                "Automatic detection",
+                "Aplicatia detecteaza automat exercitiul executat si foloseste modelul de calitate potrivit.",
+                "The application automatically detects the performed exercise and uses the proper quality model."
+        );
+
+        addOrUpdateExercise(
                 6,
                 "Exercitiul 6",
                 "Exercise 6",

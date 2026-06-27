@@ -22,6 +22,10 @@ class MlAnalysisPayloadDto(BaseModel):
     durationSeconds: float
     readyForAnalysis: bool
     message: str
+
+    # Codul ales de doctor: 0 = detectie automata, 6/7/8 = mod manual
+    selectedExerciseCode: Optional[int] = None
+
     featureColumns: List[str]
     samples: List[MlSignalSampleDto]
 
