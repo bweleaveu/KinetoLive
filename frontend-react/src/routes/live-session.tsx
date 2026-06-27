@@ -13,6 +13,7 @@ import {
   Send,
   ShieldCheck,
   Trash2,
+  UserRound,
   Wifi,
 } from "lucide-react";
 import {
@@ -37,6 +38,7 @@ import {
 } from "@/lib/api";
 import { useSensorWebSocket } from "@/hooks/useSensorWebSocket";
 import { useAppLanguage } from "@/hooks/useAppLanguage";
+import { useSelectedPatient } from "@/hooks/useSelectedPatient";
 
 export const Route = createFileRoute("/live-session")({
   head: () => ({ meta: [{ title: "Live Session — KinetoLive" }] }),
@@ -46,7 +48,6 @@ export const Route = createFileRoute("/live-session")({
 // Frecventa de esantionare folosita de sistemul KinetoLive
 const SAMPLE_RATE_HZ = 25;
 
-const PATIENT_ID = 1;
 const SELECTED_EXERCISE_KEY = "kinetolive:selectedExercise";
 
 // Texte pentru pagina Live Session in romana si engleza
@@ -67,6 +68,12 @@ const LIVE_SESSION_TEXT = {
     notStarted: "Nepornita",
     readyForLiveMonitoring: "Pregatita pentru monitorizare live",
     selectedExercise: "Exercitiu selectat",
+    selectedPatient: "Pacient selectat",
+    noPatient: "Niciun pacient",
+    noSelectedPatient:
+      "Nu exista pacient selectat. Mergi la sectiunea Pacienti si selecteaza sau adauga un pacient.",
+    cannotStartWithoutPatient:
+      "Nu poti porni sesiunea pana nu selectezi un pacient.",
     exercise: "Exercitiul",
     connectionStatus: "Starea conexiunii",
     liveDataStream: "Flux live de date",
@@ -198,6 +205,10 @@ const LIVE_SESSION_TEXT = {
           "Repeta exercitiul lent si controlat, apoi ruleaza din nou analiza.",
       },
     },
+    sessionStoppedMessage: (sessionId: number) =>
+      `Sesiunea #${sessionId} a fost oprita. Acum poti rula analiza.`,
+    couldNotStopDevice: "Nu s-a putut opri transmiterea ESP32:",
+    noSessionForAnalysis: "Nu exista o sesiune pentru analiza.",
   },
   en: {
     pageTitle: "Live Session",
@@ -215,6 +226,12 @@ const LIVE_SESSION_TEXT = {
     notStarted: "Not started",
     readyForLiveMonitoring: "Ready for live monitoring",
     selectedExercise: "Selected exercise",
+    selectedPatient: "Selected patient",
+    noPatient: "No patient",
+    noSelectedPatient:
+      "No patient selected. Go to Patients and select or add a patient.",
+    cannotStartWithoutPatient:
+      "You cannot start the session until you select a patient.",
     exercise: "Exercise",
     connectionStatus: "Connection status",
     liveDataStream: "Live data stream",
@@ -346,6 +363,10 @@ const LIVE_SESSION_TEXT = {
           "Repeat the exercise slowly and in a controlled way, then run the analysis again.",
       },
     },
+    sessionStoppedMessage: (sessionId: number) =>
+      `Session #${sessionId} was stopped. You can now run the analysis.`,
+    couldNotStopDevice: "Could not stop ESP32 streaming:",
+    noSessionForAnalysis: "There is no session available for analysis.",
   },
 } as const;
 
@@ -353,6 +374,11 @@ const LIVE_SESSION_TEXT = {
 function LiveSessionPage() {
   const { language } = useAppLanguage();
   const text = LIVE_SESSION_TEXT[language];
+  const {
+    selectedPatient,
+    selectedPatientId,
+    loading: patientLoading,
+  } = useSelectedPatient();
 
   const [exercises, setExercises] = useState<Exercise[]>(EXERCISE_FALLBACK);
   const [intended, setIntended] = useState<number>(() => {
@@ -366,15 +392,40 @@ function LiveSessionPage() {
   });
 
   const [sessionId, setSessionId] = useState<number | null>(null);
+
+  // Arata daca sesiunea curenta a fost oprita si poate fi analizata
+  const [sessionStopped, setSessionStopped] = useState(false);
+
   const [starting, setStarting] = useState(false);
   const [busy, setBusy] = useState<"analyze" | "save" | "clear" | null>(null);
   const [simulating, setSimulating] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  // Pastreaza tipul mesajului de succes pentru a se retraduce cand se schimba limba
+  type SuccessMessageType =
+    | "mlAnalysisCompleted"
+    | "mlAnalysisSaved"
+    | null;
+
+  const [successMessageType, setSuccessMessageType] =
+    useState<SuccessMessageType>(null);
+
   const [result, setResult] = useState<MLAnalysisResult | null>(null);
 
   const ws = useSensorWebSocket(sessionId);
+
+  useEffect(() => {
+    // Retraduce mesajul de succes cand se schimba limba
+    if (successMessageType === "mlAnalysisCompleted") {
+      setSuccess(text.mlAnalysisCompleted);
+    }
+
+    if (successMessageType === "mlAnalysisSaved") {
+      setSuccess(text.mlAnalysisSaved);
+    }
+  }, [language, successMessageType]);
 
   useEffect(() => {
     // Incarca exercitiile reale din backend
@@ -472,18 +523,33 @@ function LiveSessionPage() {
   const lastSample = ws.samples[ws.samples.length - 1] ?? null;
   const hasLiveData = ws.samples.length > 0;
 
+  // Porneste o sesiune noua si anunta backend-ul ca ESP32 trebuie sa transmita automat
   const startSession = async () => {
-    // Porneste o sesiune noua pentru pacientul de test
+    if (!selectedPatientId) {
+      setError(text.cannotStartWithoutPatient);
+      return;
+    }
+
     setStarting(true);
     setError(null);
+    setSuccessMessageType(null);
     setSuccess(null);
     setResult(null);
     setSimulating(false);
+    setSessionStopped(false);
     ws.reset();
 
     try {
-      const session = await api.startSession(PATIENT_ID, intended);
+      await api.stopDeviceStreaming();
+
+      const session = await api.startSession(selectedPatientId, intended);
+
       setSessionId(session.id);
+
+      await api.startDeviceStreaming(session.id);
+
+      // Mesaj simplu, fara retraducere automata
+      setSuccessMessageType(null);
       setSuccess(text.sessionStarted(session.id, intended));
     } catch (caughtError) {
       setError(`${text.couldNotStartSession} ${(caughtError as Error).message}`);
@@ -492,20 +558,35 @@ function LiveSessionPage() {
     }
   };
 
-  const endSession = () => {
-    // Opreste sesiunea live fara analiza
-    ws.stopSimulator();
-    setSimulating(false);
-    setSessionId(null);
-    ws.reset();
-    setResult(null);
-    setSuccess(null);
+  // Opreste transmiterea ESP32, dar pastreaza sessionId pentru analiza
+  const endSession = async () => {
+    if (!sessionId) {
+      return;
+    }
+
     setError(null);
+    setSuccessMessageType(null);
+    setSuccess(null);
+
+    try {
+      await api.stopDeviceStreaming();
+
+      ws.stopSimulator();
+      setSimulating(false);
+      setSessionStopped(true);
+
+      // Mesaj simplu, fara retraducere automata
+      setSuccessMessageType(null);
+      setSuccess(text.sessionStoppedMessage(sessionId));
+    } catch (caughtError) {
+      setError(`${text.couldNotStopDevice} ${(caughtError as Error).message}`);
+    }
   };
 
   const startSimulator = () => {
     // Porneste simulatorul de date BNO055
     setError(null);
+    setSuccessMessageType(null);
     setSuccess(null);
     ws.startSimulator();
     setSimulating(true);
@@ -517,43 +598,70 @@ function LiveSessionPage() {
     setSimulating(false);
   };
 
+  // Ruleaza analiza, salvarea sau stergerea bufferului pentru sesiunea live
   const run = async (kind: "analyze" | "save" | "clear") => {
-    // Ruleaza actiunile principale pentru sesiunea live
     if (!sessionId) {
+      setError(text.noSessionForAnalysis);
       return;
     }
 
     setBusy(kind);
     setError(null);
+    setSuccessMessageType(null);
     setSuccess(null);
 
     try {
       if (kind === "analyze") {
+        await api.stopDeviceStreaming();
+
         ws.stopSimulator();
         setSimulating(false);
 
         const analysisResult = await api.analyze(sessionId);
+
         setResult(analysisResult);
+
+        // Afiseaza mesaj tradus pentru analiza finalizata
+        setSuccessMessageType("mlAnalysisCompleted");
         setSuccess(text.mlAnalysisCompleted);
+
+        // Dupa analiza, sesiunea ramane oprita si poate fi inlocuita cu una noua
+        setSessionStopped(true);
+
         return;
       }
 
       if (kind === "save") {
+        await api.stopDeviceStreaming();
+
         ws.stopSimulator();
         setSimulating(false);
 
         const saveResponse = await api.analyzeAndSaveFull(sessionId);
 
         setResult(saveResponse.mlResult);
+
+        // Afiseaza mesaj tradus pentru analiza salvata
+        setSuccessMessageType("mlAnalysisSaved");
         setSuccess(text.mlAnalysisSaved);
+
+        // Dupa salvare, pregateste interfata pentru o sesiune noua
+        setSessionId(null);
+        setSessionStopped(false);
+        ws.reset();
+
         return;
       }
 
+      await api.stopDeviceStreaming();
       await api.clearBuffer(sessionId);
+
       ws.stopSimulator();
       setSimulating(false);
       ws.reset();
       setResult(null);
+      // Mesaj simplu, fara retraducere automata
+      setSuccessMessageType(null);
       setSuccess(text.liveBufferCleared);
     } catch (caughtError) {
       setError((caughtError as Error).message);
@@ -601,6 +709,12 @@ function LiveSessionPage() {
         </div>
       )}
 
+      {!patientLoading && !selectedPatientId && (
+        <div className="card-soft border-amber/30 bg-[color:var(--amber)]/5 p-4 text-sm text-[color:var(--amber)]">
+          {text.noSelectedPatient}
+        </div>
+      )}
+
       <div className="grid gap-4 xl:grid-cols-[300px_minmax(0,1fr)] xl:items-start">
         <LiveControlsPanel
           intended={intended}
@@ -608,16 +722,22 @@ function LiveSessionPage() {
           selectedExercise={selectedExercise}
           selectedExerciseDescription={selectedExerciseDescription}
           sessionId={sessionId}
+
+          // Trimite starea de oprire catre panoul de control
+          sessionStopped={sessionStopped}
+
           wsStatus={ws.status}
           sampleCount={ws.count}
           starting={starting}
           busy={busy}
           simulating={simulating}
           canSendLiveData={canSendLiveData}
+          canStartSession={Boolean(selectedPatientId) && !patientLoading}
           lastSample={lastSample}
           onExerciseChange={(exerciseCode) => {
             setIntended(exerciseCode);
             setResult(null);
+            setSuccessMessageType(null);
             setSuccess(null);
           }}
           onStartSession={startSession}
@@ -630,7 +750,7 @@ function LiveSessionPage() {
         />
 
         <div className="min-w-0 space-y-3">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
             <StatCard
               label={text.currentSession}
               value={sessionId ? `#${sessionId}` : text.notStarted}
@@ -645,6 +765,14 @@ function LiveSessionPage() {
               hint={selectedExerciseName}
               icon={Dumbbell}
               tone="cyan"
+            />
+
+            <StatCard
+              label={text.selectedPatient}
+              value={selectedPatient?.fullName ?? text.noPatient}
+              hint={selectedPatient ? `ID ${selectedPatient.id}` : text.noSelectedPatient}
+              icon={UserRound}
+              tone="mint"
             />
 
             <StatCard
@@ -897,12 +1025,17 @@ function LiveControlsPanel({
                              selectedExercise,
                              selectedExerciseDescription,
                              sessionId,
+
+                             // Starea de oprire a sesiunii curente
+                             sessionStopped,
+
                              wsStatus,
                              sampleCount,
                              starting,
                              busy,
                              simulating,
                              canSendLiveData,
+                             canStartSession,
                              lastSample,
                              onExerciseChange,
                              onStartSession,
@@ -918,16 +1051,24 @@ function LiveControlsPanel({
   selectedExercise: Exercise;
   selectedExerciseDescription: string;
   sessionId: number | null;
+
+  // Starea de oprire a sesiunii curente
+  sessionStopped: boolean;
+
   wsStatus: string;
   sampleCount: number;
   starting: boolean;
   busy: "analyze" | "save" | "clear" | null;
   simulating: boolean;
   canSendLiveData: boolean;
+  canStartSession: boolean;
   lastSample: SensorSample | null;
   onExerciseChange: (exerciseCode: number) => void;
-  onStartSession: () => void;
-  onEndSession: () => void;
+
+  // Tipurile actualizate pentru actiuni care pot fi asincrone
+  onStartSession: () => void | Promise<void>;
+  onEndSession: () => void | Promise<void>;
+
   onStartSimulator: () => void;
   onStopSimulator: () => void;
   onAnalyze: () => void;
@@ -998,7 +1139,10 @@ function LiveControlsPanel({
         <div className="mt-4 grid gap-2">
           <button
             onClick={onStartSession}
-            disabled={starting || Boolean(sessionId)}
+
+            // Permite pornirea unei sesiuni noi daca sesiunea curenta a fost oprita
+            disabled={!canStartSession || starting || (Boolean(sessionId) && !sessionStopped)}
+
             className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Play className="h-4 w-4" />
@@ -1007,7 +1151,10 @@ function LiveControlsPanel({
 
           <button
             onClick={onEndSession}
-            disabled={!sessionId}
+
+            // Opreste doar daca exista sesiune si inca nu este oprita
+            disabled={!sessionId || sessionStopped}
+
             className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-background px-4 py-2.5 text-sm font-semibold transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
           >
             <CircleStop className="h-4 w-4" />

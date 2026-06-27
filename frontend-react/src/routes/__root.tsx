@@ -15,6 +15,11 @@ import appCss from "../styles.css?url";
 import { AppLayout } from "../components/AppLayout";
 import { useAppLanguage } from "@/hooks/useAppLanguage";
 
+// Importuri pentru autentificare si verificarea rutei curente
+import { useLocation } from "@tanstack/react-router";
+import { AuthProvider } from "@/hooks/useAuth";
+import { RequireAuth } from "@/components/RequireAuth";
+
 // Texte pentru pagina principala, eroare si 404
 const ROOT_TEXT = {
   ro: {
@@ -144,14 +149,27 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+// Componenta principala care separa paginile publice de aplicatia protejata
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const location = useLocation();
+
+  const isAuthPage =
+    location.pathname === "/login" || location.pathname === "/register";
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AppLayout>
-        <Outlet />
-      </AppLayout>
+      <AuthProvider>
+        {isAuthPage ? (
+          <Outlet />
+        ) : (
+          <RequireAuth>
+            <AppLayout>
+              <Outlet />
+            </AppLayout>
+          </RequireAuth>
+        )}
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

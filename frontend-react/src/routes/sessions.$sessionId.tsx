@@ -37,7 +37,6 @@ export const Route = createFileRoute("/sessions/$sessionId")({
   component: SessionDetailsPage,
 });
 
-const PATIENT_ID = 1;
 
 // Texte pentru pagina Session Details in romana si engleza
 const SESSION_DETAILS_TEXT = {
@@ -198,13 +197,10 @@ function SessionDetailsPage() {
       setError(null);
 
       try {
-        const [sessions, repetitionResults] = await Promise.all([
-          api.patientSessions(PATIENT_ID),
+        const [selectedSession, repetitionResults] = await Promise.all([
+          api.session(numericSessionId),
           api.sessionRepetitions(numericSessionId),
         ]);
-
-        const selectedSession =
-          sessions.find((item) => item.id === numericSessionId) ?? null;
 
         if (!active) {
           return;

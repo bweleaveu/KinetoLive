@@ -3,6 +3,7 @@ package ro.licenta.kinetolive.config;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import ro.licenta.kinetolive.entity.AppUser;
 import ro.licenta.kinetolive.entity.DoctorProfile;
@@ -24,6 +25,7 @@ public class DatabaseSeeder implements CommandLineRunner {
     private final AppUserRepository appUserRepository;
     private final DoctorProfileRepository doctorProfileRepository;
     private final PatientProfileRepository patientProfileRepository;
+    private final PasswordEncoder passwordEncoder;
 
     @Override
     public void run(String... args) {
@@ -83,6 +85,7 @@ public class DatabaseSeeder implements CommandLineRunner {
         exerciseRepository.save(exercise);
     }
 
+    // Creeaza datele initiale pentru doctorul de test si pacientul de test
     private void seedTestUsers() {
         AppUser doctorUser = appUserRepository.findByEmail("doctor@kinetolive.test")
                 .orElseGet(() -> appUserRepository.save(
@@ -90,38 +93,37 @@ public class DatabaseSeeder implements CommandLineRunner {
                                 .firstName("Test")
                                 .lastName("Doctor")
                                 .email("doctor@kinetolive.test")
-                                .passwordHash("temporary_password_hash")
+                                .passwordHash(passwordEncoder.encode("doctor123"))
                                 .role(UserRole.DOCTOR)
                                 .active(true)
                                 .build()
                 ));
 
-        DoctorProfile doctorProfile = doctorProfileRepository.findByUser(doctorUser)
+        if (doctorUser.getPasswordHash() == null || !doctorUser.getPasswordHash().startsWith("$2")) {
+            doctorUser.setPasswordHash(passwordEncoder.encode("doctor123"));
+            doctorUser.setRole(UserRole.DOCTOR);
+            doctorUser.setActive(true);
+            doctorUser = appUserRepository.save(doctorUser);
+        }
+
+        final AppUser finalDoctorUser = doctorUser;
+
+        DoctorProfile doctorProfile = doctorProfileRepository.findByUser(finalDoctorUser)
                 .orElseGet(() -> doctorProfileRepository.save(
                         DoctorProfile.builder()
-                                .user(doctorUser)
+                                .user(finalDoctorUser)
                                 .specialization("Physical Therapy")
                                 .clinicName("KinetoLive Test Clinic")
                                 .phoneNumber("0700000000")
                                 .build()
                 ));
 
-        AppUser patientUser = appUserRepository.findByEmail("patient@kinetolive.test")
-                .orElseGet(() -> appUserRepository.save(
-                        AppUser.builder()
-                                .firstName("Test")
-                                .lastName("Patient")
-                                .email("patient@kinetolive.test")
-                                .passwordHash("temporary_password_hash")
-                                .role(UserRole.PATIENT)
-                                .active(true)
-                                .build()
-                ));
-
-        patientProfileRepository.findByUser(patientUser)
+        // Creeaza pacientul medical de test fara cont de autentificare
+        patientProfileRepository.findById(1L)
                 .orElseGet(() -> patientProfileRepository.save(
                         PatientProfile.builder()
-                                .user(patientUser)
+                                .firstName("Test")
+                                .lastName("Patient")
                                 .assignedDoctor(doctorProfile)
                                 .dateOfBirth(LocalDate.of(2000, 1, 1))
                                 .phoneNumber("0711111111")
@@ -129,4 +131,5 @@ public class DatabaseSeeder implements CommandLineRunner {
                                 .build()
                 ));
     }
+
 }

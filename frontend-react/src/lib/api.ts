@@ -15,6 +15,26 @@ export interface Exercise {
   active?: boolean;
 }
 
+
+export interface PatientProfile {
+  id: number;
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  doctorId?: number | null;
+  dateOfBirth?: string | null;
+  phoneNumber?: string | null;
+  medicalNotes?: string | null;
+}
+
+export interface PatientProfilePayload {
+  firstName: string;
+  lastName: string;
+  dateOfBirth?: string | null;
+  phoneNumber?: string | null;
+  medicalNotes?: string | null;
+}
+
 export interface TherapySession {
   id: number;
   patientId: number;
@@ -112,6 +132,12 @@ export interface LiveSessionBufferStatus {
   active: boolean;
 }
 
+// Interfata pentru starea controlului ESP32 din backend
+export interface DeviceControlState {
+  streamingEnabled: boolean;
+  sessionId: number | null;
+}
+
 export interface MlRepetitionPrediction {
   repetitionIndex: number;
   durationSeconds: number;
@@ -157,17 +183,32 @@ export interface LiveSessionAnalysisResult {
   savedSession: TherapySession | null;
 }
 
+// Importa tokenul JWT salvat dupa login
+import { dispatchUnauthorized, getStoredToken } from "@/lib/auth";
+
+// Trimite request-uri catre backend si adauga tokenul JWT daca doctorul este logat
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = getStoredToken();
+
   const response = await fetch(`${API_BASE}${path}`, {
+    ...init,
     headers: {
       "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(init?.headers ?? {}),
     },
-    ...init,
   });
 
   if (!response.ok) {
-    throw new Error(`${response.status} ${response.statusText} on ${path}`);
+    if (response.status === 401 || response.status === 403) {
+      dispatchUnauthorized();
+    }
+
+    const errorText = await response.text().catch(() => "");
+
+    throw new Error(
+      errorText || `${response.status} ${response.statusText} on ${path}`,
+    );
   }
 
   const text = await response.text();
@@ -259,6 +300,28 @@ export const api = {
 
   exercise: (code: number) => request<Exercise>(`/api/exercises/${code}`),
 
+  patients: () => request<PatientProfile[]>("/api/patients"),
+
+  patient: (patientId: number) =>
+    request<PatientProfile>(`/api/patients/${patientId}`),
+
+  createPatient: (payload: PatientProfilePayload) =>
+    request<PatientProfile>("/api/patients", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  updatePatient: (patientId: number, payload: PatientProfilePayload) =>
+    request<PatientProfile>(`/api/patients/${patientId}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }),
+
+  deletePatient: (patientId: number) =>
+    request<void>(`/api/patients/${patientId}`, {
+      method: "DELETE",
+    }),
+
   startSession: async (patientId: number, intendedExerciseCode: number) => {
     const session = await request<TherapySession>("/api/therapy-sessions/start", {
       method: "POST",
@@ -277,6 +340,14 @@ export const api = {
     );
 
     return sessions.map(normalizeSession);
+  },
+
+  session: async (sessionId: number) => {
+    const session = await request<TherapySession>(
+      `/api/therapy-sessions/${sessionId}`,
+    );
+
+    return normalizeSession(session);
   },
 
   sessionRepetitions: async (sessionId: number) => {
@@ -333,6 +404,22 @@ export const api = {
         : null,
     };
   },
+
+  // Anunta backend-ul ca ESP32 trebuie sa inceapa transmiterea pentru sesiunea curenta
+  startDeviceStreaming: (sessionId: number) =>
+    request<DeviceControlState>(`/api/device-control/start/${sessionId}`, {
+      method: "POST",
+    }),
+
+  // Anunta backend-ul ca ESP32 trebuie sa opreasca transmiterea
+  stopDeviceStreaming: () =>
+    request<DeviceControlState>("/api/device-control/stop", {
+      method: "POST",
+    }),
+
+  // Citeste starea controlului ESP32
+  deviceControlState: () =>
+    request<DeviceControlState>("/api/device-control/state"),
 
   clearBuffer: (sessionId: number) =>
     request<void>(`/api/live-sessions/${sessionId}/samples`, {
