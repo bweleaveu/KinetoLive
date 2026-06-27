@@ -2,11 +2,14 @@
 package ro.licenta.kinetolive.service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 import ro.licenta.kinetolive.dto.*;
 import ro.licenta.kinetolive.entity.*;
 import ro.licenta.kinetolive.entity.enums.SessionStatus;
+import ro.licenta.kinetolive.entity.enums.UserRole;
 import ro.licenta.kinetolive.repository.*;
 
 import java.time.LocalDateTime;
@@ -20,11 +23,12 @@ public class TherapySessionService {
     private final RepetitionResultRepository repetitionResultRepository;
     private final PatientProfileRepository patientProfileRepository;
     private final ExerciseRepository exerciseRepository;
+    private final AppUserRepository appUserRepository;
+    private final DoctorProfileRepository doctorProfileRepository;
 
     @Transactional
-    public TherapySessionResponseDto startSession(StartTherapySessionRequest request) {
-        PatientProfile patient = patientProfileRepository.findById(request.patientId())
-                .orElseThrow(() -> new RuntimeException("Patient not found: " + request.patientId()));
+    public TherapySessionResponseDto startSession(String doctorEmail, StartTherapySessionRequest request) {
+        PatientProfile patient = getOwnedPatient(doctorEmail, request.patientId());
 
         Exercise intendedExercise = exerciseRepository.findByExerciseCodeAndActiveTrue(request.intendedExerciseCode())
                 .orElseThrow(() -> new RuntimeException("Exercise not found: " + request.intendedExerciseCode()));
@@ -96,9 +100,14 @@ public class TherapySessionService {
         return mapSessionToDto(savedSession);
     }
 
-    public List<TherapySessionResponseDto> getSessionsByPatient(Long patientId) {
-        PatientProfile patient = patientProfileRepository.findById(patientId)
-                .orElseThrow(() -> new RuntimeException("Patient not found: " + patientId));
+    public TherapySessionResponseDto getSessionById(String doctorEmail, Long sessionId) {
+        TherapySession therapySession = getOwnedSession(doctorEmail, sessionId);
+
+        return mapSessionToDto(therapySession);
+    }
+
+    public List<TherapySessionResponseDto> getSessionsByPatient(String doctorEmail, Long patientId) {
+        PatientProfile patient = getOwnedPatient(doctorEmail, patientId);
 
         return therapySessionRepository.findAllByPatientOrderByStartedAtDesc(patient)
                 .stream()
@@ -106,9 +115,8 @@ public class TherapySessionService {
                 .toList();
     }
 
-    public List<RepetitionResultResponseDto> getRepetitionsBySession(Long sessionId) {
-        TherapySession therapySession = therapySessionRepository.findById(sessionId)
-                .orElseThrow(() -> new RuntimeException("Therapy session not found: " + sessionId));
+    public List<RepetitionResultResponseDto> getRepetitionsBySession(String doctorEmail, Long sessionId) {
+        TherapySession therapySession = getOwnedSession(doctorEmail, sessionId);
 
         return repetitionResultRepository.findAllByTherapySessionOrderByRepetitionIndexAsc(therapySession)
                 .stream()
@@ -116,9 +124,58 @@ public class TherapySessionService {
                 .toList();
     }
 
+    private PatientProfile getOwnedPatient(String doctorEmail, Long patientId) {
+        DoctorProfile doctorProfile = getOrCreateDoctorProfile(doctorEmail);
+
+        PatientProfile patient = patientProfileRepository.findById(patientId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Patient not found: " + patientId));
+
+        if (patient.getAssignedDoctor() == null || !patient.getAssignedDoctor().getId().equals(doctorProfile.getId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Nu ai acces la acest pacient.");
+        }
+
+        return patient;
+    }
+
+    private TherapySession getOwnedSession(String doctorEmail, Long sessionId) {
+        DoctorProfile doctorProfile = getOrCreateDoctorProfile(doctorEmail);
+
+        TherapySession therapySession = therapySessionRepository.findById(sessionId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Therapy session not found: " + sessionId));
+
+        PatientProfile patient = therapySession.getPatient();
+
+        if (patient.getAssignedDoctor() == null || !patient.getAssignedDoctor().getId().equals(doctorProfile.getId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Nu ai acces la aceasta sesiune.");
+        }
+
+        return therapySession;
+    }
+
+    private DoctorProfile getOrCreateDoctorProfile(String doctorEmail) {
+        AppUser doctorUser = appUserRepository.findByEmail(doctorEmail.trim().toLowerCase())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Doctorul autentificat nu a fost gasit."));
+
+        if (!doctorUser.isActive() || doctorUser.getRole() != UserRole.DOCTOR) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Doar doctorii pot accesa sesiunile.");
+        }
+
+        return doctorProfileRepository.findByUser(doctorUser)
+                .orElseGet(() -> doctorProfileRepository.save(
+                        DoctorProfile.builder()
+                                .user(doctorUser)
+                                .specialization("Physical Therapy")
+                                .clinicName("KinetoLive")
+                                .build()
+                ));
+    }
+
     private TherapySessionResponseDto mapSessionToDto(TherapySession therapySession) {
         PatientProfile patient = therapySession.getPatient();
-        AppUser patientUser = patient.getUser();
+
+        String patientName = (
+                patient.getFirstName() + " " + patient.getLastName()
+        ).trim();
 
         Exercise intendedExercise = therapySession.getIntendedExercise();
         Exercise detectedExercise = therapySession.getDetectedExercise();
@@ -126,7 +183,7 @@ public class TherapySessionService {
         return new TherapySessionResponseDto(
                 therapySession.getId(),
                 patient.getId(),
-                patientUser.getFirstName() + " " + patientUser.getLastName(),
+                patientName,
                 intendedExercise.getExerciseCode(),
                 intendedExercise.getNameEn(),
                 detectedExercise != null ? detectedExercise.getExerciseCode() : null,

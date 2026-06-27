@@ -17,6 +17,7 @@ import {
   Server,
   Timer,
   TrendingUp,
+  UsersRound,
 } from "lucide-react";
 import {
   Bar,
@@ -36,6 +37,7 @@ import {
 
 import { SectionCard, StatCard } from "@/components/StatCard";
 import { useAppLanguage } from "@/hooks/useAppLanguage";
+import { useSelectedPatient } from "@/hooks/useSelectedPatient";
 import { api, qualityBadgeClass, type TherapySession } from "@/lib/api";
 
 export const Route = createFileRoute("/")({
@@ -43,9 +45,8 @@ export const Route = createFileRoute("/")({
   component: DashboardPage,
 });
 
-const PATIENT_ID = 1;
 
-type QuickActionTo = "/live-session" | "/exercises" | "/sessions";
+type QuickActionTo = "/live-session" | "/exercises" | "/sessions" | "/patients";
 
 // Texte pentru Dashboard in romana si engleza
 const DASHBOARD_TEXT = {
@@ -69,6 +70,10 @@ const DASHBOARD_TEXT = {
     sessionsHistory: "Istoric sesiuni",
     sessionsHistoryDescription:
       "Revizuieste sesiunile salvate, repetarile si rezultatele de calitate.",
+    patients: "Pacienti",
+    patientsDescription: "Alege pacientul activ pentru datele afisate.",
+    selectedPatient: "Pacient selectat",
+    noSelectedPatient: "Nu exista pacient selectat. Adauga sau selecteaza un pacient din sectiunea Pacienti.",
     totalSessions: "Total sesiuni",
     completed: "finalizate",
     started: "pornite",
@@ -148,6 +153,10 @@ const DASHBOARD_TEXT = {
     sessionsHistory: "Sessions history",
     sessionsHistoryDescription:
       "Review saved sessions, repetitions and quality results.",
+    patients: "Patients",
+    patientsDescription: "Choose the active patient for displayed data.",
+    selectedPatient: "Selected patient",
+    noSelectedPatient: "No patient selected. Add or select a patient from the Patients section.",
     totalSessions: "Total sessions",
     completed: "completed",
     started: "started",
@@ -212,6 +221,11 @@ type DashboardText = (typeof DASHBOARD_TEXT)[keyof typeof DASHBOARD_TEXT];
 function DashboardPage() {
   const { language } = useAppLanguage();
   const text = DASHBOARD_TEXT[language];
+  const {
+    selectedPatient,
+    selectedPatientId,
+    loading: patientLoading,
+  } = useSelectedPatient();
 
   const [sessions, setSessions] = useState<TherapySession[]>([]);
   const [loading, setLoading] = useState(true);
@@ -223,6 +237,10 @@ function DashboardPage() {
     let active = true;
 
     async function loadDashboardData() {
+      if (patientLoading) {
+        return;
+      }
+
       setLoading(true);
       setError(null);
 
@@ -235,7 +253,12 @@ function DashboardPage() {
 
         setBackendOnline(true);
 
-        const patientSessions = await api.patientSessions(PATIENT_ID);
+        if (!selectedPatientId) {
+          setSessions([]);
+          return;
+        }
+
+        const patientSessions = await api.patientSessions(selectedPatientId);
 
         if (!active) {
           return;
@@ -261,7 +284,7 @@ function DashboardPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [patientLoading, selectedPatientId]);
 
   const stats = useMemo(() => {
     // Calculeaza indicatorii principali pentru Dashboard
@@ -419,7 +442,13 @@ function DashboardPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+      {!patientLoading && !selectedPatient && (
+        <div className="card-soft border-amber/30 bg-[color:var(--amber)]/5 p-4 text-sm text-[color:var(--amber)]">
+          {text.noSelectedPatient}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
         <QuickActionCard
           to="/live-session"
           title={text.startLiveSession}
@@ -439,6 +468,13 @@ function DashboardPage() {
           title={text.sessionsHistory}
           description={text.sessionsHistoryDescription}
           icon={ListChecks}
+        />
+
+        <QuickActionCard
+          to="/patients"
+          title={text.patients}
+          description={selectedPatient?.fullName ?? text.patientsDescription}
+          icon={UsersRound}
         />
       </div>
 

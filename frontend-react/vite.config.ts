@@ -5,9 +5,15 @@ import viteReact from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
+  // server: {
+  //   port: 5173,
+  //   strictPort: true,
+  // },
+
   server: {
+    host: "0.0.0.0",
     port: 5173,
-    strictPort: true,
+    allowedHosts: [".trycloudflare.com"],
   },
 
   resolve: {

@@ -13,7 +13,7 @@ import {
   Radio,
   Settings,
   Sun,
-  UserRound,
+  UsersRound,
   // Iconita pentru selectarea limbii
   Languages,
 } from "lucide-react";
@@ -29,6 +29,10 @@ import {
   type AppLanguage,
 } from "@/lib/language";
 
+// Meniu pentru doctorul autentificat
+import { DoctorMenu } from "@/components/DoctorMenu";
+import { useSelectedPatient } from "@/hooks/useSelectedPatient";
+
 const NAV = [
   {
     to: "/",
@@ -37,6 +41,10 @@ const NAV = [
   {
     to: "/exercises",
     icon: Dumbbell,
+  },
+  {
+    to: "/patients",
+    icon: UsersRound,
   },
   {
     to: "/live-session",
@@ -56,6 +64,8 @@ const TEXT = {
     dashboardDescription: "Prezentare generala",
     exercises: "Exercitii",
     exercisesDescription: "Biblioteca de exercitii",
+    patients: "Pacienti",
+    patientsDescription: "Selectare pacient",
     liveSession: "Sesiune live",
     liveSessionDescription: "Monitorizare senzori",
     sessions: "Sesiuni",
@@ -63,10 +73,10 @@ const TEXT = {
     settings: "Setari",
     settingsDescription: "Disponibil ulterior",
     collapse: "Restrange",
-    dark: "Dark",
-    light: "Light",
-    testPatient: "Pacient test",
-    patientId: "ID pacient · 1",
+    dark: "Intunecat",
+    light: "Luminos",
+    selectedPatient: "Pacient selectat",
+    noSelectedPatient: "Niciun pacient selectat",
     espTitle: "ESP32 · BNO055",
     espDescription: "Date inertiale live transmise prin WebSocket la 25 Hz.",
     mlTitle: "Analiza prin invatare automata",
@@ -79,6 +89,8 @@ const TEXT = {
     dashboardDescription: "Overview",
     exercises: "Exercises",
     exercisesDescription: "Exercise library",
+    patients: "Patients",
+    patientsDescription: "Patient selection",
     liveSession: "Live Session",
     liveSessionDescription: "Sensor monitoring",
     sessions: "Sessions",
@@ -88,8 +100,8 @@ const TEXT = {
     collapse: "Collapse",
     dark: "Dark",
     light: "Light",
-    testPatient: "Test Patient",
-    patientId: "Patient ID · 1",
+    selectedPatient: "Selected patient",
+    noSelectedPatient: "No selected patient",
     espTitle: "ESP32 · BNO055",
     espDescription: "Live inertial data streamed through WebSocket at 25 Hz.",
     mlTitle: "Machine learning analysis",
@@ -143,6 +155,7 @@ export function AppLayout({ children }: { children?: ReactNode }) {
   };
 
   const text = TEXT[language];
+  const { selectedPatient } = useSelectedPatient();
 
   // Elemente pentru meniul lateral, traduse in functie de limba selectata
   const navigationItems = [
@@ -157,6 +170,12 @@ export function AppLayout({ children }: { children?: ReactNode }) {
       label: text.exercises,
       description: text.exercisesDescription,
       icon: Dumbbell,
+    },
+    {
+      to: "/patients",
+      label: text.patients,
+      description: text.patientsDescription,
+      icon: UsersRound,
     },
     {
       to: "/live-session",
@@ -206,6 +225,10 @@ export function AppLayout({ children }: { children?: ReactNode }) {
     "/exercises": {
       label: text.exercises,
       description: text.exercisesDescription,
+    },
+    "/patients": {
+      label: text.patients,
+      description: text.patientsDescription,
     },
     "/live-session": {
       label: text.liveSession,
@@ -364,6 +387,19 @@ export function AppLayout({ children }: { children?: ReactNode }) {
             <div className="mt-auto space-y-3">
               <div className="rounded-2xl border border-border bg-background/80 p-4">
                 <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                  <UsersRound className="h-4 w-4 text-[color:var(--primary)]" />
+                  {text.selectedPatient}
+                </div>
+
+                <p className="mt-2 truncate text-xs leading-5 text-muted-foreground">
+                  {selectedPatient
+                    ? `${selectedPatient.fullName} · ID ${selectedPatient.id}`
+                    : text.noSelectedPatient}
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-border bg-background/80 p-4">
+                <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
                   <Activity className="h-4 w-4 text-[color:var(--mint)]" />
                   {/*Titlu ESP32 tradus*/}
                   {text.espTitle}
@@ -449,20 +485,8 @@ export function AppLayout({ children }: { children?: ReactNode }) {
                   </span>
                 </button>
 
-                <div className="hidden text-right sm:block">
-                  <div className="text-sm font-semibold leading-tight text-foreground">
-                    {/*Nume pacient tradus*/}
-                    {text.testPatient}
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    {/*ID pacient tradus*/}
-                    {text.patientId}
-                  </div>
-                </div>
-
-                <div className="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-[color:var(--cyan)] to-[color:var(--primary)] text-sm font-bold text-primary-foreground shadow-md shadow-primary/20">
-                  <UserRound className="h-5 w-5" />
-                </div>
+                {/* Meniu pentru doctorul autentificat si buton de sign out */}
+                <DoctorMenu />
               </div>
             </div>
 

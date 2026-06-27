@@ -1,4 +1,4 @@
-// Entitate pentru profilul unui pacient
+// Entitate pentru profilul medical al unui pacient, fara cont de autentificare
 package ro.licenta.kinetolive.entity;
 
 import jakarta.persistence.*;
@@ -19,9 +19,11 @@ public class PatientProfile {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @OneToOne(optional = false)
-    @JoinColumn(name = "user_id", nullable = false, unique = true)
-    private AppUser user;
+    @Column(nullable = false, length = 80)
+    private String firstName;
+
+    @Column(nullable = false, length = 80)
+    private String lastName;
 
     @ManyToOne
     @JoinColumn(name = "doctor_id")

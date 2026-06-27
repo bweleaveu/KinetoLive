@@ -9,12 +9,30 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as RegisterRouteImport } from './routes/register'
+import { Route as PatientsRouteImport } from './routes/patients'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as LiveSessionRouteImport } from './routes/live-session'
 import { Route as ExercisesRouteImport } from './routes/exercises'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SessionsIndexRouteImport } from './routes/sessions.index'
 import { Route as SessionsSessionIdRouteImport } from './routes/sessions.$sessionId'
 
+const RegisterRoute = RegisterRouteImport.update({
+  id: '/register',
+  path: '/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PatientsRoute = PatientsRouteImport.update({
+  id: '/patients',
+  path: '/patients',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LiveSessionRoute = LiveSessionRouteImport.update({
   id: '/live-session',
   path: '/live-session',
@@ -45,6 +63,9 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/exercises': typeof ExercisesRoute
   '/live-session': typeof LiveSessionRoute
+  '/login': typeof LoginRoute
+  '/patients': typeof PatientsRoute
+  '/register': typeof RegisterRoute
   '/sessions/$sessionId': typeof SessionsSessionIdRoute
   '/sessions/': typeof SessionsIndexRoute
 }
@@ -52,6 +73,9 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/exercises': typeof ExercisesRoute
   '/live-session': typeof LiveSessionRoute
+  '/login': typeof LoginRoute
+  '/patients': typeof PatientsRoute
+  '/register': typeof RegisterRoute
   '/sessions/$sessionId': typeof SessionsSessionIdRoute
   '/sessions': typeof SessionsIndexRoute
 }
@@ -60,6 +84,9 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/exercises': typeof ExercisesRoute
   '/live-session': typeof LiveSessionRoute
+  '/login': typeof LoginRoute
+  '/patients': typeof PatientsRoute
+  '/register': typeof RegisterRoute
   '/sessions/$sessionId': typeof SessionsSessionIdRoute
   '/sessions/': typeof SessionsIndexRoute
 }
@@ -69,6 +96,9 @@ export interface FileRouteTypes {
     | '/'
     | '/exercises'
     | '/live-session'
+    | '/login'
+    | '/patients'
+    | '/register'
     | '/sessions/$sessionId'
     | '/sessions/'
   fileRoutesByTo: FileRoutesByTo
@@ -76,6 +106,9 @@ export interface FileRouteTypes {
     | '/'
     | '/exercises'
     | '/live-session'
+    | '/login'
+    | '/patients'
+    | '/register'
     | '/sessions/$sessionId'
     | '/sessions'
   id:
@@ -83,6 +116,9 @@ export interface FileRouteTypes {
     | '/'
     | '/exercises'
     | '/live-session'
+    | '/login'
+    | '/patients'
+    | '/register'
     | '/sessions/$sessionId'
     | '/sessions/'
   fileRoutesById: FileRoutesById
@@ -91,12 +127,36 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ExercisesRoute: typeof ExercisesRoute
   LiveSessionRoute: typeof LiveSessionRoute
+  LoginRoute: typeof LoginRoute
+  PatientsRoute: typeof PatientsRoute
+  RegisterRoute: typeof RegisterRoute
   SessionsSessionIdRoute: typeof SessionsSessionIdRoute
   SessionsIndexRoute: typeof SessionsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/register': {
+      id: '/register'
+      path: '/register'
+      fullPath: '/register'
+      preLoaderRoute: typeof RegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/patients': {
+      id: '/patients'
+      path: '/patients'
+      fullPath: '/patients'
+      preLoaderRoute: typeof PatientsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/live-session': {
       id: '/live-session'
       path: '/live-session'
@@ -139,6 +199,9 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ExercisesRoute: ExercisesRoute,
   LiveSessionRoute: LiveSessionRoute,
+  LoginRoute: LoginRoute,
+  PatientsRoute: PatientsRoute,
+  RegisterRoute: RegisterRoute,
   SessionsSessionIdRoute: SessionsSessionIdRoute,
   SessionsIndexRoute: SessionsIndexRoute,
 }

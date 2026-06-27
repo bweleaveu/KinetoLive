@@ -15,6 +15,7 @@ import {
 
 import { SectionCard, StatCard } from "@/components/StatCard";
 import { useAppLanguage } from "@/hooks/useAppLanguage";
+import { useSelectedPatient } from "@/hooks/useSelectedPatient";
 import { api, qualityBadgeClass, type TherapySession } from "@/lib/api";
 
 export const Route = createFileRoute("/sessions/")({
@@ -22,7 +23,6 @@ export const Route = createFileRoute("/sessions/")({
   component: SessionsPage,
 });
 
-const PATIENT_ID = 1;
 const STATUS_FILTERS = ["ALL", "STARTED", "COMPLETED", "FAILED"] as const;
 
 // Texte pentru pagina Sessions in romana si engleza
@@ -52,6 +52,8 @@ const SESSIONS_TEXT = {
     loadingSessions: "Se incarca sesiunile...",
     noSessionsFound:
       "Nu a fost gasita nicio sesiune. Porneste o sesiune live pentru a genera date.",
+    noSelectedPatient:
+      "Nu exista pacient selectat. Mergi la sectiunea Pacienti si selecteaza un pacient.",
     tableSession: "Sesiune",
     tableStatus: "Status",
     tableStarted: "Pornita",
@@ -103,6 +105,8 @@ const SESSIONS_TEXT = {
     loadingSessions: "Loading sessions...",
     noSessionsFound:
       "No sessions found. Start a live session to generate data.",
+    noSelectedPatient:
+      "No patient selected. Go to Patients and select a patient.",
     tableSession: "Session",
     tableStatus: "Status",
     tableStarted: "Started",
@@ -134,6 +138,7 @@ const SESSIONS_TEXT = {
 function SessionsPage() {
   const { language } = useAppLanguage();
   const text = SESSIONS_TEXT[language];
+  const { selectedPatientId, loading: patientLoading } = useSelectedPatient();
 
   const [sessions, setSessions] = useState<TherapySession[]>([]);
   const [loading, setLoading] = useState(true);
@@ -142,15 +147,25 @@ function SessionsPage() {
   const [statusFilter, setStatusFilter] = useState<(typeof STATUS_FILTERS)[number]>("ALL");
 
   useEffect(() => {
-    // Incarca sesiunile salvate pentru pacientul de test
+    // Incarca sesiunile salvate pentru pacientul selectat
     let active = true;
 
     async function loadSessions() {
+      if (patientLoading) {
+        return;
+      }
+
       setLoading(true);
       setError(null);
 
+      if (!selectedPatientId) {
+        setSessions([]);
+        setLoading(false);
+        return;
+      }
+
       try {
-        const result = await api.patientSessions(PATIENT_ID);
+        const result = await api.patientSessions(selectedPatientId);
 
         if (active) {
           setSessions(result ?? []);
@@ -171,7 +186,7 @@ function SessionsPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [patientLoading, selectedPatientId]);
 
   const stats = useMemo(() => {
     // Calculeaza indicatorii principali pentru istoricul sesiunilor
@@ -253,6 +268,12 @@ function SessionsPage() {
       {error && (
         <div className="card-soft border-rose/30 bg-[color:var(--rose)]/5 p-4 text-sm text-[color:var(--rose)]">
           {text.errorPrefix} {error}. {text.errorSuffix}
+        </div>
+      )}
+
+      {!patientLoading && !selectedPatientId && (
+        <div className="card-soft border-amber/30 bg-[color:var(--amber)]/5 p-4 text-sm text-[color:var(--amber)]">
+          {text.noSelectedPatient}
         </div>
       )}
 
