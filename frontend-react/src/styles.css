@@ -76,49 +76,6 @@
   --sidebar-border: oklch(0.92 0.012 240);
 }
 
-/* Tema dark pentru interfata KinetoLive */
-.dark {
-  --background: oklch(0.16 0.025 250);
-  --foreground: oklch(0.96 0.01 240);
-
-  --card: oklch(0.20 0.025 250);
-  --card-foreground: oklch(0.96 0.01 240);
-
-  --popover: oklch(0.20 0.025 250);
-  --popover-foreground: oklch(0.96 0.01 240);
-
-  --primary: oklch(0.70 0.16 240);
-  --primary-foreground: oklch(0.12 0.02 250);
-
-  --secondary: oklch(0.24 0.025 250);
-  --secondary-foreground: oklch(0.92 0.01 240);
-
-  --muted: oklch(0.24 0.02 250);
-  --muted-foreground: oklch(0.70 0.025 250);
-
-  --accent: oklch(0.28 0.04 235);
-  --accent-foreground: oklch(0.92 0.02 240);
-
-  --destructive: oklch(0.65 0.20 25);
-  --destructive-foreground: oklch(0.98 0 0);
-
-  --border: oklch(0.30 0.025 250);
-  --input: oklch(0.32 0.025 250);
-  --ring: oklch(0.70 0.10 240);
-
-  --cyan: oklch(0.76 0.13 215);
-  --mint: oklch(0.76 0.13 165);
-  --violet: oklch(0.74 0.15 295);
-  --amber: oklch(0.80 0.15 70);
-  --rose: oklch(0.72 0.18 20);
-
-  --sidebar: oklch(0.13 0.025 250);
-  --sidebar-foreground: oklch(0.90 0.015 240);
-  --sidebar-accent: oklch(0.23 0.035 245);
-  --sidebar-accent-foreground: oklch(0.94 0.015 240);
-  --sidebar-border: oklch(0.28 0.025 250);
-}
-
 @layer base {
   * { border-color: var(--color-border); }
   body {

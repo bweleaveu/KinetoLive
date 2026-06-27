@@ -35,7 +35,6 @@ import {
 } from "recharts";
 
 import { SectionCard, StatCard } from "@/components/StatCard";
-import { useAppLanguage } from "@/hooks/useAppLanguage";
 import { api, qualityBadgeClass, type TherapySession } from "@/lib/api";
 
 export const Route = createFileRoute("/")({
@@ -47,172 +46,7 @@ const PATIENT_ID = 1;
 
 type QuickActionTo = "/live-session" | "/exercises" | "/sessions";
 
-// Texte pentru Dashboard in romana si engleza
-const DASHBOARD_TEXT = {
-  ro: {
-    title: "KinetoLive Dashboard",
-    subtitle:
-      "Prezentare generala a sesiunilor de recuperare, monitorizarii live a senzorilor, predictiilor prin invatare automata si progresului pacientului.",
-    backend: "Backend",
-    online: "online",
-    offline: "offline",
-    checking: "verificare",
-    backendErrorPrefix: "Nu s-a putut conecta la backend-ul Spring Boot",
-    backendErrorHint:
-      "Verifica daca backend-ul ruleaza pe http://localhost:8080.",
-    startLiveSession: "Porneste sesiune live",
-    startLiveSessionDescription:
-      "Deschide pagina de monitorizare live si transmite datele senzorului BNO055.",
-    exerciseLibrary: "Biblioteca de exercitii",
-    exerciseLibraryDescription:
-      "Vezi exercitiile de recuperare folosite de fluxul de invatare automata.",
-    sessionsHistory: "Istoric sesiuni",
-    sessionsHistoryDescription:
-      "Revizuieste sesiunile salvate, repetarile si rezultatele de calitate.",
-    totalSessions: "Total sesiuni",
-    completed: "finalizate",
-    started: "pornite",
-    lastExercise: "Ultimul exercitiu",
-    noSession: "Nicio sesiune",
-    lastQuality: "Ultima calitate",
-    noAnalysisYet: "Nicio analiza inca",
-    totalRepetitions: "Total repetari",
-    repetitionsHint: "Detectate prin segmentare automata",
-    avgDuration: "Durata medie",
-    completedSessions: "Sesiuni finalizate",
-    avgExerciseConfidence: "Incredere medie exercitiu",
-    exerciseClassifier: "Clasificator exercitii",
-    avgQualityConfidence: "Incredere medie calitate",
-    qualityClassifier: "Clasificator calitate",
-    backendStatus: "Status backend",
-    springBootPort: "Spring Boot · port 8080",
-    sessionDuration: "Durata sesiunilor",
-    sessionDurationSubtitle: "Ultimele sesiuni, in secunde",
-    durationLabel: "Durata",
-    repetitionsPerSession: "Repetari pe sesiune",
-    repetitionsPerSessionSubtitle: "Repetari detectate",
-    repetitionsLabel: "Repetari",
-    qualityDistribution: "Distributia calitatii",
-    qualityDistributionSubtitle: "Clase de calitate ale executiei",
-    exerciseDistribution: "Distributia exercitiilor",
-    exerciseDistributionSubtitle: "Exercitiile 6, 7 si 8",
-    sessionsLabel: "Sesiuni",
-    // Texte pentru graficul scorurilor de analiza
-    confidenceTrend: "Evolutia scorurilor de analiza",
-    confidenceTrendSubtitle:
-      "Scorurile calculate pentru exercitiu si calitatea executiei",
-    exerciseConfidence: "Scor analiza exercitiu",
-    qualityConfidence: "Scor analiza calitate",
-    recentSessions: "Sesiuni recente",
-    recentSessionsSubtitle: "Ultimele sesiuni de terapie salvate",
-    viewAll: "Vezi toate",
-    noSessionsYet:
-      "Nu exista sesiuni inca. Porneste o sesiune live pentru a genera date.",
-    tableSession: "Sesiune",
-    tableStatus: "Status",
-    tableIntended: "Planificat",
-    tableDetected: "Detectat",
-    tableQuality: "Calitate",
-    tableReps: "Rep",
-    tableDuration: "Durata",
-    tableStarted: "Pornita",
-    pipelineTitle: "Pipeline KinetoLive",
-    pipelineDescription:
-      "Datele BNO055 sunt transmise prin WebSocket, stocate temporar de Spring Boot, analizate de microserviciul Python pentru invatare automata si salvate in PostgreSQL.",
-    loading: "Se incarca...",
-    noDataYet: "Nu exista date inca",
-    exerciseWord: "Exercitiul",
-    statusCompleted: "FINALIZATA",
-    statusStarted: "PORNITA",
-    statusOther: "NEFINALIZATA",
-    qualityNormal: "Normal",
-    qualityRapid: "Rapid",
-    qualitySmallAmplitude: "Amplitudine mica",
-  },
-  en: {
-    title: "KinetoLive Dashboard",
-    subtitle:
-      "Overview of rehabilitation sessions, live sensor monitoring, machine learning predictions and patient progress.",
-    backend: "Backend",
-    online: "online",
-    offline: "offline",
-    checking: "checking",
-    backendErrorPrefix: "Could not reach Spring Boot backend",
-    backendErrorHint: "Make sure the backend is running on http://localhost:8080.",
-    startLiveSession: "Start live session",
-    startLiveSessionDescription:
-      "Open the live monitoring page and stream BNO055 sensor data.",
-    exerciseLibrary: "Exercise library",
-    exerciseLibraryDescription:
-      "View the rehabilitation exercises used by the machine learning pipeline.",
-    sessionsHistory: "Sessions history",
-    sessionsHistoryDescription:
-      "Review saved sessions, repetitions and quality results.",
-    totalSessions: "Total sessions",
-    completed: "completed",
-    started: "started",
-    lastExercise: "Last exercise",
-    noSession: "No session",
-    lastQuality: "Last quality",
-    noAnalysisYet: "No analysis yet",
-    totalRepetitions: "Total repetitions",
-    repetitionsHint: "Detected by machine learning segmentation",
-    avgDuration: "Avg duration",
-    completedSessions: "Completed sessions",
-    avgExerciseConfidence: "Avg exercise confidence",
-    exerciseClassifier: "Exercise classifier",
-    avgQualityConfidence: "Avg quality confidence",
-    qualityClassifier: "Quality classifier",
-    backendStatus: "Backend status",
-    springBootPort: "Spring Boot · port 8080",
-    sessionDuration: "Session duration",
-    sessionDurationSubtitle: "Last sessions, in seconds",
-    durationLabel: "Duration",
-    repetitionsPerSession: "Repetitions per session",
-    repetitionsPerSessionSubtitle: "Detected repetitions",
-    repetitionsLabel: "Repetitions",
-    qualityDistribution: "Quality distribution",
-    qualityDistributionSubtitle: "Execution quality classes",
-    exerciseDistribution: "Exercise distribution",
-    exerciseDistributionSubtitle: "Exercise 6, 7 and 8",
-    sessionsLabel: "Sessions",
-    confidenceTrend: "Confidence trend",
-    confidenceTrendSubtitle: "Exercise and quality confidence over time",
-    exerciseConfidence: "Exercise confidence",
-    qualityConfidence: "Quality confidence",
-    recentSessions: "Recent sessions",
-    recentSessionsSubtitle: "Last saved therapy sessions",
-    viewAll: "View all",
-    noSessionsYet: "No sessions yet. Start a live session to generate data.",
-    tableSession: "Session",
-    tableStatus: "Status",
-    tableIntended: "Intended",
-    tableDetected: "Detected",
-    tableQuality: "Quality",
-    tableReps: "Reps",
-    tableDuration: "Duration",
-    tableStarted: "Started",
-    pipelineTitle: "KinetoLive pipeline",
-    pipelineDescription:
-      "BNO055 samples are streamed through WebSocket, buffered by Spring Boot, analyzed by the Python machine learning service and saved in PostgreSQL.",
-    loading: "Loading...",
-    noDataYet: "No data yet",
-    exerciseWord: "Exercise",
-    statusCompleted: "COMPLETED",
-    statusStarted: "STARTED",
-    statusOther: "NOT COMPLETED",
-    qualityNormal: "Normal",
-    qualityRapid: "Rapid",
-    qualitySmallAmplitude: "Small amplitude",
-  },
-} as const;
-
-type DashboardText = (typeof DASHBOARD_TEXT)[keyof typeof DASHBOARD_TEXT];
-
 function DashboardPage() {
-  const { language } = useAppLanguage();
-  const text = DASHBOARD_TEXT[language];
-
   const [sessions, setSessions] = useState<TherapySession[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -329,7 +163,7 @@ function DashboardPage() {
   }, [sessions]);
 
   const confidenceSeries = useMemo(() => {
-    // Pregateste graficul increderii modelului de invatare automata
+    // Pregateste graficul increderii modelului ML
     return [...sessions]
       .reverse()
       .slice(-10)
@@ -354,35 +188,29 @@ function DashboardPage() {
       }
     });
 
-    return Object.entries(counts).map(([rawName, value]) => ({
-      rawName,
-      name: formatQualityName(rawName, text),
-      value,
-    }));
-  }, [sessions, text]);
+    return Object.entries(counts).map(([name, value]) => ({ name, value }));
+  }, [sessions]);
 
   const exerciseDistribution = useMemo(() => {
     // Pregateste distributia exercitiilor analizate
-    const counts: Record<number, number> = {
-      6: 0,
-      7: 0,
-      8: 0,
+    const counts: Record<string, number> = {
+      "Exercise 6": 0,
+      "Exercise 7": 0,
+      "Exercise 8": 0,
     };
 
     sessions.forEach((session) => {
       const exerciseCode =
         session.detectedExerciseCode ?? session.intendedExerciseCode;
+      const key = `Exercise ${exerciseCode}`;
 
-      if (exerciseCode in counts) {
-        counts[exerciseCode] += 1;
+      if (key in counts) {
+        counts[key] += 1;
       }
     });
 
-    return Object.entries(counts).map(([code, value]) => ({
-      name: formatExerciseName(Number(code), text),
-      value,
-    }));
-  }, [sessions, text]);
+    return Object.entries(counts).map(([name, value]) => ({ name, value }));
+  }, [sessions]);
 
   const recentSessions = useMemo(() => {
     // Pastreaza ultimele sesiuni pentru tabelul rapid
@@ -396,10 +224,11 @@ function DashboardPage() {
       <div className="flex flex-col justify-between gap-4 xl:flex-row xl:items-end">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-            {text.title}
+            KinetoLive Dashboard
           </h1>
           <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-            {text.subtitle}
+            Overview of rehabilitation sessions, live sensor monitoring, ML
+            predictions and patient progress.
           </p>
         </div>
 
@@ -409,134 +238,130 @@ function DashboardPage() {
               backendOnline ? "bg-[color:var(--mint)]" : "bg-[color:var(--amber)]"
             }`}
           />
-          {text.backend} {backendOnline ? text.online : backendOnline === false ? text.offline : text.checking}
+          Backend {backendOnline ? "online" : backendOnline === false ? "offline" : "checking"}
         </div>
       </div>
 
       {error && (
         <div className="card-soft border-rose/30 bg-[color:var(--rose)]/5 p-4 text-sm text-[color:var(--rose)]">
-          {text.backendErrorPrefix}: {error}. {text.backendErrorHint}
+          Could not reach Spring Boot backend: {error}. Make sure the backend is
+          running on http://localhost:8080.
         </div>
       )}
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <QuickActionCard
           to="/live-session"
-          title={text.startLiveSession}
-          description={text.startLiveSessionDescription}
+          title="Start live session"
+          description="Open the live monitoring page and stream BNO055 sensor data."
           icon={Radio}
         />
 
         <QuickActionCard
           to="/exercises"
-          title={text.exerciseLibrary}
-          description={text.exerciseLibraryDescription}
+          title="Exercise library"
+          description="View the rehabilitation exercises used by the ML pipeline."
           icon={Dumbbell}
         />
 
         <QuickActionCard
           to="/sessions"
-          title={text.sessionsHistory}
-          description={text.sessionsHistoryDescription}
+          title="Sessions history"
+          description="Review saved sessions, repetitions and quality results."
           icon={ListChecks}
         />
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
-          label={text.totalSessions}
+          label="Total sessions"
           value={stats.totalSessions}
-          hint={`${stats.completedSessions} ${text.completed} · ${stats.startedSessions} ${text.started}`}
+          hint={`${stats.completedSessions} completed · ${stats.startedSessions} started`}
           icon={Activity}
           tone="primary"
         />
 
         <StatCard
-          label={text.lastExercise}
+          label="Last exercise"
           value={
             lastSession?.detectedExerciseCode
-              ? formatExerciseName(lastSession.detectedExerciseCode, text)
+              ? `Exercise ${lastSession.detectedExerciseCode}`
               : lastSession?.intendedExerciseCode
-                ? formatExerciseName(lastSession.intendedExerciseCode, text)
+                ? `Exercise ${lastSession.intendedExerciseCode}`
                 : "—"
           }
-          hint={lastSession ? formatDateTime(lastSession.startedAt, language) : text.noSession}
+          hint={lastSession ? formatDateTime(lastSession.startedAt) : "No session"}
           icon={Dumbbell}
           tone="cyan"
         />
 
         <StatCard
-          label={text.lastQuality}
-          value={formatQualityName(lastSession?.qualityName, text)}
-          hint={lastSession?.status ? formatStatus(lastSession.status, text) : text.noAnalysisYet}
+          label="Last quality"
+          value={lastSession?.qualityName ?? "—"}
+          hint={lastSession?.status ?? "No analysis yet"}
           icon={CheckCircle2}
           tone="mint"
         />
 
         <StatCard
-          label={text.totalRepetitions}
+          label="Total repetitions"
           value={stats.totalRepetitions}
-          hint={text.repetitionsHint}
+          hint="Detected by ML segmentation"
           icon={Repeat}
           tone="violet"
         />
 
         <StatCard
-          label={text.avgDuration}
+          label="Avg duration"
           value={`${round(stats.averageDuration, 1)} s`}
-          hint={text.completedSessions}
+          hint="Completed sessions"
           icon={Timer}
           tone="amber"
         />
 
         <StatCard
-          label={text.avgExerciseConfidence}
+          label="Avg exercise confidence"
           value={formatPercent(stats.averageExerciseConfidence)}
-          hint={text.exerciseClassifier}
+          hint="Exercise classifier"
           icon={TrendingUp}
           tone="cyan"
         />
 
         <StatCard
-          label={text.avgQualityConfidence}
+          label="Avg quality confidence"
           value={formatPercent(stats.averageQualityConfidence)}
-          hint={text.qualityClassifier}
+          hint="Quality classifier"
           icon={Gauge}
           tone="mint"
         />
 
         <StatCard
-          label={text.backendStatus}
+          label="Backend status"
           value={
             backendOnline === null
-              ? `${text.checking}...`
+              ? "Checking..."
               : backendOnline
-                ? text.online
-                : text.offline
+                ? "Online"
+                : "Offline"
           }
-          hint={text.springBootPort}
+          hint="Spring Boot · port 8080"
           icon={backendOnline ? Server : AlertCircle}
           tone={backendOnline ? "mint" : "rose"}
         />
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <SectionCard title={text.sessionDuration} subtitle={text.sessionDurationSubtitle}>
-          <ChartWrap loading={loading} empty={!durationSeries.length} loadingText={text.loading} emptyText={text.noDataYet}>
+        <SectionCard title="Session duration" subtitle="Last sessions, in seconds">
+          <ChartWrap loading={loading} empty={!durationSeries.length}>
             <LineChart data={durationSeries}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
               <XAxis dataKey="name" stroke="var(--muted-foreground)" fontSize={12} />
               <YAxis stroke="var(--muted-foreground)" fontSize={12} />
-              {/* Tooltip compatibil cu dark mode */}
-              <Tooltip
-                contentStyle={tooltipStyle}
-                labelStyle={tooltipLabelStyle}
-                itemStyle={tooltipItemStyle}
-              />
+              <Tooltip contentStyle={tooltipStyle} />
               <Line
                 type="monotone"
                 dataKey="duration"
-                name={text.durationLabel}
+                name="Duration"
                 stroke="var(--primary)"
                 strokeWidth={2}
                 dot={{ r: 3 }}
@@ -545,22 +370,16 @@ function DashboardPage() {
           </ChartWrap>
         </SectionCard>
 
-        <SectionCard title={text.repetitionsPerSession} subtitle={text.repetitionsPerSessionSubtitle}>
-          <ChartWrap loading={loading} empty={!repetitionSeries.length} loadingText={text.loading} emptyText={text.noDataYet}>
+        <SectionCard title="Repetitions per session" subtitle="Detected repetitions">
+          <ChartWrap loading={loading} empty={!repetitionSeries.length}>
             <BarChart data={repetitionSeries}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
               <XAxis dataKey="name" stroke="var(--muted-foreground)" fontSize={12} />
               <YAxis stroke="var(--muted-foreground)" fontSize={12} />
-              {/* Tooltip compatibil cu dark mode */}
-              <Tooltip
-                contentStyle={tooltipStyle}
-                labelStyle={tooltipLabelStyle}
-                itemStyle={tooltipItemStyle}
-                cursor={{ fill: "var(--muted)", opacity: 0.5 }}
-              />
+              <Tooltip contentStyle={tooltipStyle} />
               <Bar
                 dataKey="repetitions"
-                name={text.repetitionsLabel}
+                name="Repetitions"
                 fill="var(--cyan)"
                 radius={[6, 6, 0, 0]}
               />
@@ -568,10 +387,9 @@ function DashboardPage() {
           </ChartWrap>
         </SectionCard>
 
-        <SectionCard title={text.qualityDistribution} subtitle={text.qualityDistributionSubtitle}>
-          <ChartWrap loading={loading} empty={!sessions.length} loadingText={text.loading} emptyText={text.noDataYet}>
+        <SectionCard title="Quality distribution" subtitle="Execution quality classes">
+          <ChartWrap loading={loading} empty={!sessions.length}>
             <PieChart>
-              {/* Grafic donut pentru distributia calitatii */}
               <Pie
                 data={qualityDistribution}
                 dataKey="value"
@@ -581,41 +399,25 @@ function DashboardPage() {
                 paddingAngle={2}
               >
                 {qualityDistribution.map((item) => (
-                  <Cell
-                    key={item.rawName}
-                    fill={getQualityColor(item.rawName)}
-                    stroke="var(--card)"
-                    strokeWidth={3}
-                  />
+                  <Cell key={item.name} fill={getQualityColor(item.name)} />
                 ))}
               </Pie>
-              {/* Tooltip compatibil cu dark mode */}
-              <Tooltip
-                contentStyle={tooltipStyle}
-                labelStyle={tooltipLabelStyle}
-                itemStyle={tooltipItemStyle}
-              />
+              <Tooltip contentStyle={tooltipStyle} />
               <Legend wrapperStyle={{ fontSize: 12 }} />
             </PieChart>
           </ChartWrap>
         </SectionCard>
 
-        <SectionCard title={text.exerciseDistribution} subtitle={text.exerciseDistributionSubtitle}>
-          <ChartWrap loading={loading} empty={!sessions.length} loadingText={text.loading} emptyText={text.noDataYet}>
+        <SectionCard title="Exercise distribution" subtitle="Exercise 6, 7 and 8">
+          <ChartWrap loading={loading} empty={!sessions.length}>
             <BarChart data={exerciseDistribution}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
               <XAxis dataKey="name" stroke="var(--muted-foreground)" fontSize={12} />
               <YAxis stroke="var(--muted-foreground)" fontSize={12} />
-              {/* Tooltip cu highlight discret pe coloane */}
-              <Tooltip
-                contentStyle={tooltipStyle}
-                labelStyle={tooltipLabelStyle}
-                itemStyle={tooltipItemStyle}
-                cursor={{ fill: "var(--muted)", opacity: 0.5 }}
-              />
+              <Tooltip contentStyle={tooltipStyle} />
               <Bar
                 dataKey="value"
-                name={text.sessionsLabel}
+                name="Sessions"
                 fill="var(--violet)"
                 radius={[6, 6, 0, 0]}
               />
@@ -624,26 +426,21 @@ function DashboardPage() {
         </SectionCard>
 
         <SectionCard
-          title={text.confidenceTrend}
-          subtitle={text.confidenceTrendSubtitle}
+          title="Confidence trend"
+          subtitle="Exercise and quality confidence over time"
           className="lg:col-span-2"
         >
-          <ChartWrap loading={loading} empty={!confidenceSeries.length} loadingText={text.loading} emptyText={text.noDataYet}>
+          <ChartWrap loading={loading} empty={!confidenceSeries.length}>
             <LineChart data={confidenceSeries}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
               <XAxis dataKey="name" stroke="var(--muted-foreground)" fontSize={12} />
               <YAxis domain={[0, 100]} stroke="var(--muted-foreground)" fontSize={12} />
-              {/* Tooltip compatibil cu dark mode */}
-              <Tooltip
-                contentStyle={tooltipStyle}
-                labelStyle={tooltipLabelStyle}
-                itemStyle={tooltipItemStyle}
-              />
+              <Tooltip contentStyle={tooltipStyle} />
               <Legend wrapperStyle={{ fontSize: 12 }} />
               <Line
                 type="monotone"
                 dataKey="exercise"
-                name={text.exerciseConfidence}
+                name="Exercise confidence"
                 stroke="var(--primary)"
                 strokeWidth={2}
                 dot={{ r: 3 }}
@@ -651,7 +448,7 @@ function DashboardPage() {
               <Line
                 type="monotone"
                 dataKey="quality"
-                name={text.qualityConfidence}
+                name="Quality confidence"
                 stroke="var(--mint)"
                 strokeWidth={2}
                 dot={{ r: 3 }}
@@ -662,35 +459,35 @@ function DashboardPage() {
       </div>
 
       <SectionCard
-        title={text.recentSessions}
-        subtitle={text.recentSessionsSubtitle}
+        title="Recent sessions"
+        subtitle="Last saved therapy sessions"
         action={
           <Link
             to="/sessions"
             className="inline-flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-2 text-xs font-semibold transition hover:bg-muted"
           >
-            {text.viewAll}
+            View all
             <ArrowRight className="h-4 w-4" />
           </Link>
         }
       >
         {recentSessions.length === 0 ? (
           <div className="grid min-h-[120px] place-items-center text-sm text-muted-foreground">
-            {text.noSessionsYet}
+            No sessions yet. Start a live session to generate data.
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[760px] text-left text-sm">
               <thead className="border-b border-border text-xs uppercase text-muted-foreground">
               <tr>
-                <th className="py-3 pr-4">{text.tableSession}</th>
-                <th className="py-3 pr-4">{text.tableStatus}</th>
-                <th className="py-3 pr-4">{text.tableIntended}</th>
-                <th className="py-3 pr-4">{text.tableDetected}</th>
-                <th className="py-3 pr-4">{text.tableQuality}</th>
-                <th className="py-3 pr-4">{text.tableReps}</th>
-                <th className="py-3 pr-4">{text.tableDuration}</th>
-                <th className="py-3">{text.tableStarted}</th>
+                <th className="py-3 pr-4">Session</th>
+                <th className="py-3 pr-4">Status</th>
+                <th className="py-3 pr-4">Intended</th>
+                <th className="py-3 pr-4">Detected</th>
+                <th className="py-3 pr-4">Quality</th>
+                <th className="py-3 pr-4">Reps</th>
+                <th className="py-3 pr-4">Duration</th>
+                <th className="py-3">Started</th>
               </tr>
               </thead>
 
@@ -701,14 +498,14 @@ function DashboardPage() {
                     #{session.id}
                   </td>
                   <td className="py-3 pr-4">
-                    <StatusBadge status={session.status} label={formatStatus(session.status, text)} />
+                    <StatusBadge status={session.status} />
                   </td>
                   <td className="py-3 pr-4">
-                    {formatExerciseName(session.intendedExerciseCode, text)}
+                    Exercise {session.intendedExerciseCode}
                   </td>
                   <td className="py-3 pr-4">
                     {session.detectedExerciseCode
-                      ? formatExerciseName(session.detectedExerciseCode, text)
+                      ? `Exercise ${session.detectedExerciseCode}`
                       : "—"}
                   </td>
                   <td className="py-3 pr-4">
@@ -718,7 +515,7 @@ function DashboardPage() {
                           session.qualityName,
                         )}`}
                       >
-                          {formatQualityName(session.qualityName, text)}
+                          {session.qualityName}
                         </span>
                     ) : (
                       "—"
@@ -730,9 +527,7 @@ function DashboardPage() {
                       ? `${round(session.durationSeconds, 1)} s`
                       : "—"}
                   </td>
-                  <td className="py-3">
-                    {formatDateTime(session.startedAt, language)}
-                  </td>
+                  <td className="py-3">{formatDateTime(session.startedAt)}</td>
                 </tr>
               ))}
               </tbody>
@@ -744,9 +539,12 @@ function DashboardPage() {
       <div className="card-soft p-5 text-xs text-muted-foreground">
         <div className="flex items-center gap-2 font-medium text-foreground">
           <Cpu className="h-4 w-4" />
-          {text.pipelineTitle}
+          KinetoLive pipeline
         </div>
-        <p className="mt-1">{text.pipelineDescription}</p>
+        <p className="mt-1">
+          BNO055 samples are streamed through WebSocket, buffered by Spring Boot,
+          analyzed by the Python ML service and saved in PostgreSQL.
+        </p>
       </div>
     </div>
   );
@@ -785,7 +583,7 @@ function QuickActionCard({
   );
 }
 
-function StatusBadge({ status, label }: { status: string; label: string }) {
+function StatusBadge({ status }: { status: string }) {
   // Afiseaza statusul sesiunii
   const className =
     status === "COMPLETED"
@@ -796,7 +594,7 @@ function StatusBadge({ status, label }: { status: string; label: string }) {
 
   return (
     <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${className}`}>
-      {label}
+      {status}
     </span>
   );
 }
@@ -805,20 +603,16 @@ function ChartWrap({
                      children,
                      loading,
                      empty,
-                     loadingText,
-                     emptyText,
                    }: {
   children: ReactElement;
   loading: boolean;
   empty: boolean;
-  loadingText: string;
-  emptyText: string;
 }) {
   // Afiseaza stari simple pentru grafice
   if (loading) {
     return (
       <div className="grid h-[240px] place-items-center text-sm text-muted-foreground">
-        {loadingText}
+        Loading...
       </div>
     );
   }
@@ -826,7 +620,7 @@ function ChartWrap({
   if (empty) {
     return (
       <div className="grid h-[240px] place-items-center text-sm text-muted-foreground">
-        {emptyText}
+        No data yet
       </div>
     );
   }
@@ -838,23 +632,11 @@ function ChartWrap({
   );
 }
 
-// Stil pentru tooltipurile graficelor in light mode si dark mode
 const tooltipStyle = {
   background: "var(--popover)",
   border: "1px solid var(--border)",
   borderRadius: 10,
   fontSize: 12,
-  color: "var(--popover-foreground)",
-  boxShadow: "0 12px 30px rgba(0, 0, 0, 0.18)",
-} as const;
-
-const tooltipLabelStyle = {
-  color: "var(--popover-foreground)",
-  fontWeight: 600,
-} as const;
-
-const tooltipItemStyle = {
-  color: "var(--popover-foreground)",
 } as const;
 
 function average(values: Array<number | null | undefined>): number {
@@ -897,54 +679,13 @@ function round(value: number, decimals = 0): number {
   return Math.round(value * factor) / factor;
 }
 
-function formatDateTime(value: string | null | undefined, language: "ro" | "en"): string {
+function formatDateTime(value?: string | null): string {
   // Formateaza data unei sesiuni
   if (!value) {
     return "—";
   }
 
-  return new Date(value).toLocaleString(language === "ro" ? "ro-RO" : "en-US");
-}
-
-function formatExerciseName(
-  exerciseCode: number | null | undefined,
-  text: DashboardText,
-): string {
-  // Formateaza numele exercitiului in functie de limba
-  if (!exerciseCode) {
-    return "—";
-  }
-
-  return `${text.exerciseWord} ${exerciseCode}`;
-}
-
-function formatQualityName(
-  value: string | null | undefined,
-  text: DashboardText,
-): string {
-  // Formateaza clasa de calitate in functie de limba
-  switch (value) {
-    case "Normal":
-      return text.qualityNormal;
-    case "Rapid":
-      return text.qualityRapid;
-    case "Small amplitude":
-      return text.qualitySmallAmplitude;
-    default:
-      return value ?? "—";
-  }
-}
-
-function formatStatus(status: string, text: DashboardText): string {
-  // Formateaza statusul sesiunii in functie de limba
-  switch (status) {
-    case "COMPLETED":
-      return text.statusCompleted;
-    case "STARTED":
-      return text.statusStarted;
-    default:
-      return text.statusOther;
-  }
+  return new Date(value).toLocaleString();
 }
 
 function getQualityColor(value: string): string {

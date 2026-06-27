@@ -14,7 +14,6 @@ import {
 } from "lucide-react";
 
 import { SectionCard, StatCard } from "@/components/StatCard";
-import { useAppLanguage } from "@/hooks/useAppLanguage";
 import { api, qualityBadgeClass, type TherapySession } from "@/lib/api";
 
 export const Route = createFileRoute("/sessions/")({
@@ -25,116 +24,7 @@ export const Route = createFileRoute("/sessions/")({
 const PATIENT_ID = 1;
 const STATUS_FILTERS = ["ALL", "STARTED", "COMPLETED", "FAILED"] as const;
 
-// Texte pentru pagina Sessions in romana si engleza
-const SESSIONS_TEXT = {
-  ro: {
-    pageTitle: "Istoric sesiuni",
-    pageDescription:
-      "Sesiuni de recuperare salvate, predictii prin invatare automata si rezultate pe repetari.",
-    startLiveSession: "Porneste sesiune live",
-    errorPrefix: "Nu s-au putut incarca sesiunile:",
-    errorSuffix: "Asigura-te ca Spring Boot ruleaza pe http://localhost:8080.",
-    totalSessions: "Total sesiuni",
-    allPatientSessions: "Toate sesiunile pacientului",
-    completed: "Finalizate",
-    analyzedAndSaved: "Analizate si salvate",
-    started: "Pornite",
-    notFinalizedYet: "Nefinalizate inca",
-    totalRepetitions: "Total repetari",
-    detectedBySegmentation: "Detectate prin segmentare",
-    avgDuration: "Durata medie",
-    completedSessions: "Sesiuni finalizate",
-    therapySessions: "Sesiuni terapie",
-    therapySessionsSubtitle:
-      "Filtreaza, cauta si deschide detaliile sesiunilor salvate",
-    searchPlaceholder: "Cauta dupa exercitiu, calitate sau status...",
-    allStatuses: "Toate statusurile",
-    loadingSessions: "Se incarca sesiunile...",
-    noSessionsFound:
-      "Nu a fost gasita nicio sesiune. Porneste o sesiune live pentru a genera date.",
-    tableSession: "Sesiune",
-    tableStatus: "Status",
-    tableStarted: "Pornita",
-    tableEnded: "Oprita",
-    tableIntended: "Intentionat",
-    tableDetected: "Detectat",
-    tableQuality: "Calitate",
-    tableReps: "Repetari",
-    tableDuration: "Durata",
-    tableConfidence: "Incredere",
-    tableDetails: "Detalii",
-    exercise: "Exercitiul",
-    view: "Vezi",
-    exerciseConfidence: "Exercitiu",
-    qualityValues: {
-      Normal: "Normal",
-      Rapid: "Rapid",
-      "Small amplitude": "Amplitudine mica",
-    },
-    statusValues: {
-      ALL: "Toate statusurile",
-      STARTED: "Pornita",
-      COMPLETED: "Finalizata",
-      FAILED: "Esuata",
-    },
-  },
-  en: {
-    pageTitle: "Sessions History",
-    pageDescription:
-      "Saved rehabilitation sessions, machine learning predictions and repetition results.",
-    startLiveSession: "Start live session",
-    errorPrefix: "Could not load sessions:",
-    errorSuffix: "Make sure Spring Boot is running on http://localhost:8080.",
-    totalSessions: "Total sessions",
-    allPatientSessions: "All patient sessions",
-    completed: "Completed",
-    analyzedAndSaved: "Analyzed and saved",
-    started: "Started",
-    notFinalizedYet: "Not finalized yet",
-    totalRepetitions: "Total repetitions",
-    detectedBySegmentation: "Detected by segmentation",
-    avgDuration: "Avg duration",
-    completedSessions: "Completed sessions",
-    therapySessions: "Therapy sessions",
-    therapySessionsSubtitle:
-      "Filter, search and open saved session details",
-    searchPlaceholder: "Search by exercise, quality or status...",
-    allStatuses: "All statuses",
-    loadingSessions: "Loading sessions...",
-    noSessionsFound:
-      "No sessions found. Start a live session to generate data.",
-    tableSession: "Session",
-    tableStatus: "Status",
-    tableStarted: "Started",
-    tableEnded: "Ended",
-    tableIntended: "Intended",
-    tableDetected: "Detected",
-    tableQuality: "Quality",
-    tableReps: "Reps",
-    tableDuration: "Duration",
-    tableConfidence: "Confidence",
-    tableDetails: "Details",
-    exercise: "Exercise",
-    view: "View",
-    exerciseConfidence: "Exercise",
-    qualityValues: {
-      Normal: "Normal",
-      Rapid: "Rapid",
-      "Small amplitude": "Small amplitude",
-    },
-    statusValues: {
-      ALL: "All statuses",
-      STARTED: "Started",
-      COMPLETED: "Completed",
-      FAILED: "Failed",
-    },
-  },
-} as const;
-
 function SessionsPage() {
-  const { language } = useAppLanguage();
-  const text = SESSIONS_TEXT[language];
-
   const [sessions, setSessions] = useState<TherapySession[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -234,10 +124,10 @@ function SessionsPage() {
       <div className="flex flex-col justify-between gap-3 md:flex-row md:items-end">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-            {text.pageTitle}
+            Sessions History
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {text.pageDescription}
+            Saved rehabilitation sessions, ML predictions and repetition results.
           </p>
         </div>
 
@@ -245,62 +135,63 @@ function SessionsPage() {
           to="/live-session"
           className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
         >
-          {text.startLiveSession}
+          Start live session
           <ChevronRight className="h-4 w-4" />
         </Link>
       </div>
 
       {error && (
         <div className="card-soft border-rose/30 bg-[color:var(--rose)]/5 p-4 text-sm text-[color:var(--rose)]">
-          {text.errorPrefix} {error}. {text.errorSuffix}
+          Could not load sessions: {error}. Make sure Spring Boot is running on
+          http://localhost:8080.
         </div>
       )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <StatCard
-          label={text.totalSessions}
+          label="Total sessions"
           value={stats.totalSessions}
-          hint={text.allPatientSessions}
+          hint="All patient sessions"
           icon={Activity}
           tone="primary"
         />
 
         <StatCard
-          label={text.completed}
+          label="Completed"
           value={stats.completedSessions}
-          hint={text.analyzedAndSaved}
+          hint="Analyzed and saved"
           icon={CheckCircle2}
           tone="mint"
         />
 
         <StatCard
-          label={text.started}
+          label="Started"
           value={stats.startedSessions}
-          hint={text.notFinalizedYet}
+          hint="Not finalized yet"
           icon={Clock}
           tone="amber"
         />
 
         <StatCard
-          label={text.totalRepetitions}
+          label="Total repetitions"
           value={stats.totalRepetitions}
-          hint={text.detectedBySegmentation}
+          hint="Detected by segmentation"
           icon={Repeat}
           tone="violet"
         />
 
         <StatCard
-          label={text.avgDuration}
+          label="Avg duration"
           value={`${round(stats.averageDuration, 1)} s`}
-          hint={text.completedSessions}
+          hint="Completed sessions"
           icon={Timer}
           tone="cyan"
         />
       </div>
 
       <SectionCard
-        title={text.therapySessions}
-        subtitle={text.therapySessionsSubtitle}
+        title="Therapy sessions"
+        subtitle="Filter, search and open saved session details"
       >
         <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="relative w-full lg:max-w-sm">
@@ -308,7 +199,7 @@ function SessionsPage() {
             <input
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder={text.searchPlaceholder}
+              placeholder="Search by exercise, quality or status..."
               className="h-10 w-full rounded-xl border border-border bg-background pl-9 pr-3 text-sm outline-none transition focus:border-primary"
             />
           </div>
@@ -322,23 +213,23 @@ function SessionsPage() {
               }
               className="h-10 rounded-xl border border-border bg-background px-3 text-sm outline-none transition focus:border-primary"
             >
-              <option value="ALL">{text.allStatuses}</option>
-              <option value="STARTED">{text.statusValues.STARTED}</option>
-              <option value="COMPLETED">{text.statusValues.COMPLETED}</option>
-              <option value="FAILED">{text.statusValues.FAILED}</option>
+              <option value="ALL">All statuses</option>
+              <option value="STARTED">Started</option>
+              <option value="COMPLETED">Completed</option>
+              <option value="FAILED">Failed</option>
             </select>
           </div>
         </div>
 
         {loading ? (
           <div className="grid min-h-[240px] place-items-center text-sm text-muted-foreground">
-            {text.loadingSessions}
+            Loading sessions...
           </div>
         ) : filteredSessions.length === 0 ? (
           <div className="grid min-h-[240px] place-items-center text-center text-sm text-muted-foreground">
             <div>
               <XCircle className="mx-auto mb-2 h-7 w-7" />
-              {text.noSessionsFound}
+              No sessions found. Start a live session to generate data.
             </div>
           </div>
         ) : (
@@ -346,17 +237,17 @@ function SessionsPage() {
             <table className="w-full min-w-[1040px] text-left text-sm">
               <thead className="border-b border-border text-xs uppercase text-muted-foreground">
               <tr>
-                <th className="py-3 pr-4">{text.tableSession}</th>
-                <th className="py-3 pr-4">{text.tableStatus}</th>
-                <th className="py-3 pr-4">{text.tableStarted}</th>
-                <th className="py-3 pr-4">{text.tableEnded}</th>
-                <th className="py-3 pr-4">{text.tableIntended}</th>
-                <th className="py-3 pr-4">{text.tableDetected}</th>
-                <th className="py-3 pr-4">{text.tableQuality}</th>
-                <th className="py-3 pr-4">{text.tableReps}</th>
-                <th className="py-3 pr-4">{text.tableDuration}</th>
-                <th className="py-3 pr-4">{text.tableConfidence}</th>
-                <th className="py-3 text-right">{text.tableDetails}</th>
+                <th className="py-3 pr-4">Session</th>
+                <th className="py-3 pr-4">Status</th>
+                <th className="py-3 pr-4">Started</th>
+                <th className="py-3 pr-4">Ended</th>
+                <th className="py-3 pr-4">Intended</th>
+                <th className="py-3 pr-4">Detected</th>
+                <th className="py-3 pr-4">Quality</th>
+                <th className="py-3 pr-4">Reps</th>
+                <th className="py-3 pr-4">Duration</th>
+                <th className="py-3 pr-4">Confidence</th>
+                <th className="py-3 text-right">Details</th>
               </tr>
               </thead>
 
@@ -371,10 +262,7 @@ function SessionsPage() {
                   </td>
 
                   <td className="py-3 pr-4">
-                    <StatusBadge
-                      status={session.status}
-                      label={formatStatus(session.status, text.statusValues)}
-                    />
+                    <StatusBadge status={session.status} />
                   </td>
 
                   <td className="py-3 pr-4 whitespace-nowrap text-muted-foreground">
@@ -386,12 +274,12 @@ function SessionsPage() {
                   </td>
 
                   <td className="py-3 pr-4 whitespace-nowrap">
-                    {text.exercise} {session.intendedExerciseCode}
+                    Exercise {session.intendedExerciseCode}
                   </td>
 
                   <td className="py-3 pr-4 whitespace-nowrap">
                     {session.detectedExerciseCode
-                      ? `${text.exercise} ${session.detectedExerciseCode}`
+                      ? `Exercise ${session.detectedExerciseCode}`
                       : "—"}
                   </td>
 
@@ -402,8 +290,8 @@ function SessionsPage() {
                           session.qualityName,
                         )}`}
                       >
-                        {formatQualityName(session.qualityName, text.qualityValues)}
-                      </span>
+                          {session.qualityName}
+                        </span>
                     ) : (
                       "—"
                     )}
@@ -420,7 +308,7 @@ function SessionsPage() {
                   <td className="py-3 pr-4">
                     <div className="min-w-[130px]">
                       <div className="mb-1 flex justify-between text-xs text-muted-foreground">
-                        <span>{text.exerciseConfidence}</span>
+                        <span>Exercise</span>
                         <span>{formatPercent(session.exerciseConfidence)}</span>
                       </div>
                       <div className="h-2 rounded-full bg-muted">
@@ -440,7 +328,7 @@ function SessionsPage() {
                       params={{ sessionId: String(session.id) }}
                       className="inline-flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-2 text-xs font-medium transition hover:bg-muted"
                     >
-                      {text.view}
+                      View
                       <ChevronRight className="h-4 w-4" />
                     </Link>
                   </td>
@@ -455,7 +343,7 @@ function SessionsPage() {
   );
 }
 
-function StatusBadge({ status, label }: { status: string; label: string }) {
+function StatusBadge({ status }: { status: string }) {
   // Afiseaza statusul sesiunii cu o culoare relevanta
   const className =
     status === "COMPLETED"
@@ -466,7 +354,7 @@ function StatusBadge({ status, label }: { status: string; label: string }) {
 
   return (
     <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${className}`}>
-      {label}
+      {status}
     </span>
   );
 }
@@ -516,20 +404,4 @@ function formatDateTime(value?: string | null): string {
   }
 
   return new Date(value).toLocaleString();
-}
-
-function formatStatus(
-  status: string,
-  statusValues: Record<string, string>,
-): string {
-  // Traduce statusul sesiunii pentru afisare
-  return statusValues[status] ?? status;
-}
-
-function formatQualityName(
-  qualityName: string,
-  qualityValues: Record<string, string>,
-): string {
-  // Traduce numele calitatii pentru afisare
-  return qualityValues[qualityName] ?? qualityName;
 }

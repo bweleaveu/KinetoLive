@@ -1,6 +1,6 @@
 // Pagina pentru detaliile unei sesiuni de recuperare KinetoLive
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState, type ReactElement } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   Activity,
@@ -24,7 +24,6 @@ import {
 } from "recharts";
 
 import { SectionCard, StatCard } from "@/components/StatCard";
-import { useAppLanguage } from "@/hooks/useAppLanguage";
 import {
   api,
   qualityBadgeClass,
@@ -39,147 +38,7 @@ export const Route = createFileRoute("/sessions/$sessionId")({
 
 const PATIENT_ID = 1;
 
-// Texte pentru pagina Session Details in romana si engleza
-const SESSION_DETAILS_TEXT = {
-  ro: {
-    loading: "Se incarca detaliile sesiunii...",
-    errorPrefix: "Nu s-au putut incarca detaliile sesiunii:",
-    errorSuffix: "Asigura-te ca Spring Boot ruleaza pe http://localhost:8080.",
-    notFound: (id: number) => `Sesiunea #${id} nu a fost gasita.`,
-    backToSessions: "Inapoi la sesiuni",
-    sessionTitle: (id: number) => `Sesiunea #${id}`,
-    pageDescription:
-      "Analiza prin invatare automata detaliata, rezultate pe repetari si calitatea executiei.",
-    intendedExercise: "Exercitiu intentionat",
-    selectedByPatient: "Selectat de pacient",
-    detectedExercise: "Exercitiu detectat",
-    mlResult: "Rezultat analiza prin invatare automata",
-    executionQuality: "Calitatea executiei",
-    repetitions: "Repetari",
-    detectedRepetitions: "Repetari detectate",
-    duration: "Durata",
-    samples: "esantioane",
-    exerciseConfidence: "Incredere exercitiu",
-    exerciseClassifier: "Clasificator exercitiu",
-    qualityConfidence: "Incredere calitate",
-    qualityClassifier: "Clasificator calitate",
-    startedAt: "Pornita la",
-    sessionSummary: "Rezumat sesiune",
-    sessionSummarySubtitle: "Informatii principale salvate in PostgreSQL",
-    patient: "Pacient",
-    status: "Status",
-    endedAt: "Oprita la",
-    sampleCount: "Numar esantioane",
-    mlMessage: "Mesaj analiza prin invatare automata",
-    noMessageAvailable: "Niciun mesaj disponibil",
-    repetitionDuration: "Durata repetarilor",
-    durationInSeconds: "Durata in secunde",
-    samplesPerRepetition: "Esantioane pe repetare",
-    segmentSize: "Dimensiune segment",
-    confidencePerRepetition: "Incredere pe repetare",
-    confidenceSubtitle: "Incredere exercitiu si calitate",
-    durationSeries: "Durata",
-    samplesSeries: "Esantioane",
-    exerciseConfidenceSeries: "Incredere exercitiu",
-    qualityConfidenceSeries: "Incredere calitate",
-    repetitionResults: "Rezultate repetari",
-    repetitionResultsSubtitle: "Predictie pentru fiecare repetare detectata",
-    noRepetitionResults:
-      "Nu au fost salvate rezultate pe repetari pentru aceasta sesiune.",
-    noRepetitionData: "Nu exista date disponibile pentru repetari",
-    tableRep: "Rep",
-    tableExercise: "Exercitiu",
-    tableExerciseConfidence: "Incredere exercitiu",
-    tableQuality: "Calitate",
-    tableQualityConfidence: "Incredere calitate",
-    tableDuration: "Durata",
-    tableSamples: "Esantioane",
-    tableStart: "Start",
-    tableEnd: "Final",
-    exercise: "Exercitiul",
-    qualityValues: {
-      Normal: "Normal",
-      Rapid: "Rapid",
-      "Small amplitude": "Amplitudine mica",
-    },
-    statusValues: {
-      STARTED: "Pornita",
-      COMPLETED: "Finalizata",
-      FAILED: "Esuata",
-    },
-  },
-  en: {
-    loading: "Loading session details...",
-    errorPrefix: "Could not load session details:",
-    errorSuffix: "Make sure Spring Boot is running on http://localhost:8080.",
-    notFound: (id: number) => `Session #${id} was not found.`,
-    backToSessions: "Back to sessions",
-    sessionTitle: (id: number) => `Session #${id}`,
-    pageDescription:
-      "Detailed Machine learning analysis, repetition results and execution quality.",
-    intendedExercise: "Intended exercise",
-    selectedByPatient: "Selected by patient",
-    detectedExercise: "Detected exercise",
-    mlResult: "Machine learning result",
-    executionQuality: "Execution quality",
-    repetitions: "Repetitions",
-    detectedRepetitions: "Detected repetitions",
-    duration: "Duration",
-    samples: "samples",
-    exerciseConfidence: "Exercise confidence",
-    exerciseClassifier: "Exercise classifier",
-    qualityConfidence: "Quality confidence",
-    qualityClassifier: "Quality classifier",
-    startedAt: "Started at",
-    sessionSummary: "Session summary",
-    sessionSummarySubtitle: "Main information saved in PostgreSQL",
-    patient: "Patient",
-    status: "Status",
-    endedAt: "Ended at",
-    sampleCount: "Sample count",
-    mlMessage: "Machine learning message",
-    noMessageAvailable: "No message available",
-    repetitionDuration: "Repetition duration",
-    durationInSeconds: "Duration in seconds",
-    samplesPerRepetition: "Samples per repetition",
-    segmentSize: "Segment size",
-    confidencePerRepetition: "Confidence per repetition",
-    confidenceSubtitle: "Exercise and quality confidence",
-    durationSeries: "Duration",
-    samplesSeries: "Samples",
-    exerciseConfidenceSeries: "Exercise confidence",
-    qualityConfidenceSeries: "Quality confidence",
-    repetitionResults: "Repetition results",
-    repetitionResultsSubtitle: "Prediction for each detected repetition",
-    noRepetitionResults:
-      "No repetition results were saved for this session.",
-    noRepetitionData: "No repetition data available",
-    tableRep: "Rep",
-    tableExercise: "Exercise",
-    tableExerciseConfidence: "Exercise confidence",
-    tableQuality: "Quality",
-    tableQualityConfidence: "Quality confidence",
-    tableDuration: "Duration",
-    tableSamples: "Samples",
-    tableStart: "Start",
-    tableEnd: "End",
-    exercise: "Exercise",
-    qualityValues: {
-      Normal: "Normal",
-      Rapid: "Rapid",
-      "Small amplitude": "Small amplitude",
-    },
-    statusValues: {
-      STARTED: "Started",
-      COMPLETED: "Completed",
-      FAILED: "Failed",
-    },
-  },
-} as const;
-
 function SessionDetailsPage() {
-  const { language } = useAppLanguage();
-  const text = SESSION_DETAILS_TEXT[language];
   const { sessionId } = Route.useParams();
 
   const numericSessionId = Number(sessionId);
@@ -258,7 +117,7 @@ function SessionDetailsPage() {
   if (loading) {
     return (
       <div className="grid min-h-[60vh] place-items-center text-sm text-muted-foreground">
-        {text.loading}
+        Loading session details...
       </div>
     );
   }
@@ -269,7 +128,8 @@ function SessionDetailsPage() {
         <BackLink />
 
         <div className="card-soft border-rose/30 bg-[color:var(--rose)]/5 p-4 text-sm text-[color:var(--rose)]">
-          {text.errorPrefix} {error}. {text.errorSuffix}
+          Could not load session details: {error}. Make sure Spring Boot is
+          running on http://localhost:8080.
         </div>
       </div>
     );
@@ -281,7 +141,7 @@ function SessionDetailsPage() {
         <BackLink />
 
         <div className="card-soft p-6 text-sm text-muted-foreground">
-          {text.notFound(numericSessionId)}
+          Session #{numericSessionId} was not found.
         </div>
       </div>
     );
@@ -294,90 +154,83 @@ function SessionDetailsPage() {
       <div className="flex flex-col justify-between gap-3 md:flex-row md:items-end">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-            {text.sessionTitle(session.id)}
+            Session #{session.id}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {text.pageDescription}
+            Detailed ML analysis, repetition results and execution quality.
           </p>
         </div>
 
-        <StatusBadge
-          status={session.status}
-          label={formatStatus(session.status, text.statusValues)}
-        />
+        <StatusBadge status={session.status} />
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
-          label={text.intendedExercise}
-          value={`${text.exercise} ${session.intendedExerciseCode}`}
-          hint={session.intendedExerciseName ?? text.selectedByPatient}
+          label="Intended exercise"
+          value={`Exercise ${session.intendedExerciseCode}`}
+          hint={session.intendedExerciseName ?? "Selected by patient"}
           icon={Dumbbell}
           tone="primary"
         />
 
         <StatCard
-          label={text.detectedExercise}
+          label="Detected exercise"
           value={
             session.detectedExerciseCode
-              ? `${text.exercise} ${session.detectedExerciseCode}`
+              ? `Exercise ${session.detectedExerciseCode}`
               : "—"
           }
-          hint={session.detectedExerciseName ?? text.mlResult}
+          hint={session.detectedExerciseName ?? "ML result"}
           icon={Activity}
           tone="cyan"
         />
 
         <StatCard
-          label={text.executionQuality}
-          value={
-            session.qualityName
-              ? formatQualityName(session.qualityName, text.qualityValues)
-              : "—"
-          }
-          hint={formatStatus(session.status, text.statusValues)}
+          label="Execution quality"
+          value={session.qualityName ?? "—"}
+          hint={session.status}
           icon={CheckCircle2}
           tone="mint"
         />
 
         <StatCard
-          label={text.repetitions}
+          label="Repetitions"
           value={session.repetitionCount ?? repetitions.length}
-          hint={text.detectedRepetitions}
+          hint="Detected repetitions"
           icon={Repeat}
           tone="violet"
         />
 
         <StatCard
-          label={text.duration}
+          label="Duration"
           value={
             typeof session.durationSeconds === "number"
               ? `${round(session.durationSeconds, 1)} s`
               : "—"
           }
-          hint={`${session.sampleCount ?? 0} ${text.samples}`}
+          hint={`${session.sampleCount ?? 0} samples`}
           icon={Timer}
           tone="amber"
         />
 
         <StatCard
-          label={text.exerciseConfidence}
+          label="Exercise confidence"
           value={formatPercent(session.exerciseConfidence)}
-          hint={text.exerciseClassifier}
+          hint="Exercise classifier"
           icon={Gauge}
           tone="cyan"
         />
 
         <StatCard
-          label={text.qualityConfidence}
+          label="Quality confidence"
           value={formatPercent(session.qualityConfidence)}
-          hint={text.qualityClassifier}
+          hint="Quality classifier"
           icon={Gauge}
           tone="mint"
         />
 
         <StatCard
-          label={text.startedAt}
+          label="Started at"
           value={formatShortDate(session.startedAt)}
           hint={formatTime(session.startedAt)}
           icon={Timer}
@@ -385,37 +238,31 @@ function SessionDetailsPage() {
         />
       </div>
 
-      <SectionCard title={text.sessionSummary} subtitle={text.sessionSummarySubtitle}>
+      <SectionCard title="Session summary" subtitle="Main information saved in PostgreSQL">
         <div className="grid gap-4 md:grid-cols-2">
-          <InfoRow label={text.patient} value={session.patientName ?? `${text.patient} ${session.patientId}`} />
-          <InfoRow label={text.status} value={formatStatus(session.status, text.statusValues)} />
-          <InfoRow label={text.startedAt} value={formatDateTime(session.startedAt)} />
-          <InfoRow label={text.endedAt} value={formatDateTime(session.endedAt)} />
-          <InfoRow label={text.sampleCount} value={String(session.sampleCount ?? 0)} />
+          <InfoRow label="Patient" value={session.patientName ?? `Patient ${session.patientId}`} />
+          <InfoRow label="Status" value={session.status} />
+          <InfoRow label="Started at" value={formatDateTime(session.startedAt)} />
+          <InfoRow label="Ended at" value={formatDateTime(session.endedAt)} />
+          <InfoRow label="Sample count" value={String(session.sampleCount ?? 0)} />
           <InfoRow
-            label={text.mlMessage}
-            value={session.message ?? session.notes ?? text.noMessageAvailable}
+            label="ML message"
+            value={session.message ?? session.notes ?? "No message available"}
           />
         </div>
       </SectionCard>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <SectionCard title={text.repetitionDuration} subtitle={text.durationInSeconds}>
+        <SectionCard title="Repetition duration" subtitle="Duration in seconds">
           <ChartWrap empty={!durationChartData.length}>
             <BarChart data={durationChartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
               <XAxis dataKey="name" stroke="var(--muted-foreground)" fontSize={12} />
               <YAxis stroke="var(--muted-foreground)" fontSize={12} />
-              {/* Tooltip compatibil cu dark mode */}
-              <Tooltip
-                contentStyle={tooltipStyle}
-                labelStyle={tooltipLabelStyle}
-                itemStyle={tooltipItemStyle}
-                cursor={{ fill: "var(--muted)", opacity: 0.5 }}
-              />
+              <Tooltip contentStyle={tooltipStyle} />
               <Bar
                 dataKey="duration"
-                name={text.durationSeries}
+                name="Duration"
                 fill="var(--primary)"
                 radius={[6, 6, 0, 0]}
               />
@@ -423,22 +270,16 @@ function SessionDetailsPage() {
           </ChartWrap>
         </SectionCard>
 
-        <SectionCard title={text.samplesPerRepetition} subtitle={text.segmentSize}>
+        <SectionCard title="Samples per repetition" subtitle="Segment size">
           <ChartWrap empty={!sampleChartData.length}>
             <BarChart data={sampleChartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
               <XAxis dataKey="name" stroke="var(--muted-foreground)" fontSize={12} />
               <YAxis stroke="var(--muted-foreground)" fontSize={12} />
-              {/* Tooltip compatibil cu dark mode */}
-              <Tooltip
-                contentStyle={tooltipStyle}
-                labelStyle={tooltipLabelStyle}
-                itemStyle={tooltipItemStyle}
-                cursor={{ fill: "var(--muted)", opacity: 0.5 }}
-              />
+              <Tooltip contentStyle={tooltipStyle} />
               <Bar
                 dataKey="samples"
-                name={text.samplesSeries}
+                name="Samples"
                 fill="var(--violet)"
                 radius={[6, 6, 0, 0]}
               />
@@ -447,8 +288,8 @@ function SessionDetailsPage() {
         </SectionCard>
 
         <SectionCard
-          title={text.confidencePerRepetition}
-          subtitle={text.confidenceSubtitle}
+          title="Confidence per repetition"
+          subtitle="Exercise and quality confidence"
           className="lg:col-span-2"
         >
           <ChartWrap empty={!confidenceChartData.length}>
@@ -456,24 +297,19 @@ function SessionDetailsPage() {
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
               <XAxis dataKey="name" stroke="var(--muted-foreground)" fontSize={12} />
               <YAxis domain={[0, 100]} stroke="var(--muted-foreground)" fontSize={12} />
-              {/* Tooltip compatibil cu dark mode */}
-              <Tooltip
-                contentStyle={tooltipStyle}
-                labelStyle={tooltipLabelStyle}
-                itemStyle={tooltipItemStyle}
-              />
+              <Tooltip contentStyle={tooltipStyle} />
               <Legend wrapperStyle={{ fontSize: 12 }} />
               <Line
                 type="monotone"
                 dataKey="exercise"
-                name={text.exerciseConfidenceSeries}
+                name="Exercise confidence"
                 stroke="var(--primary)"
                 strokeWidth={2}
               />
               <Line
                 type="monotone"
                 dataKey="quality"
-                name={text.qualityConfidenceSeries}
+                name="Quality confidence"
                 stroke="var(--mint)"
                 strokeWidth={2}
               />
@@ -482,25 +318,25 @@ function SessionDetailsPage() {
         </SectionCard>
       </div>
 
-      <SectionCard title={text.repetitionResults} subtitle={text.repetitionResultsSubtitle}>
+      <SectionCard title="Repetition results" subtitle="Prediction for each detected repetition">
         {repetitions.length === 0 ? (
           <div className="grid min-h-[160px] place-items-center text-sm text-muted-foreground">
-            {text.noRepetitionResults}
+            No repetition results were saved for this session.
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[900px] text-left text-sm">
               <thead className="border-b border-border text-xs uppercase text-muted-foreground">
               <tr>
-                <th className="py-3 pr-4">{text.tableRep}</th>
-                <th className="py-3 pr-4">{text.tableExercise}</th>
-                <th className="py-3 pr-4">{text.tableExerciseConfidence}</th>
-                <th className="py-3 pr-4">{text.tableQuality}</th>
-                <th className="py-3 pr-4">{text.tableQualityConfidence}</th>
-                <th className="py-3 pr-4">{text.tableDuration}</th>
-                <th className="py-3 pr-4">{text.tableSamples}</th>
-                <th className="py-3 pr-4">{text.tableStart}</th>
-                <th className="py-3">{text.tableEnd}</th>
+                <th className="py-3 pr-4">Rep</th>
+                <th className="py-3 pr-4">Exercise</th>
+                <th className="py-3 pr-4">Exercise confidence</th>
+                <th className="py-3 pr-4">Quality</th>
+                <th className="py-3 pr-4">Quality confidence</th>
+                <th className="py-3 pr-4">Duration</th>
+                <th className="py-3 pr-4">Samples</th>
+                <th className="py-3 pr-4">Start</th>
+                <th className="py-3">End</th>
               </tr>
               </thead>
 
@@ -516,9 +352,9 @@ function SessionDetailsPage() {
 
                   <td className="py-3 pr-4">
                     {repetition.predictedExerciseCode
-                      ? `${text.exercise} ${repetition.predictedExerciseCode}`
+                      ? `Exercise ${repetition.predictedExerciseCode}`
                       : repetition.exerciseCode
-                        ? `${text.exercise} ${repetition.exerciseCode}`
+                        ? `Exercise ${repetition.exerciseCode}`
                         : "—"}
                   </td>
 
@@ -533,8 +369,8 @@ function SessionDetailsPage() {
                           repetition.qualityName,
                         )}`}
                       >
-                        {formatQualityName(repetition.qualityName, text.qualityValues)}
-                      </span>
+                          {repetition.qualityName}
+                        </span>
                     ) : (
                       "—"
                     )}
@@ -574,16 +410,13 @@ function SessionDetailsPage() {
 
 function BackLink() {
   // Buton pentru revenirea la istoricul sesiunilor
-  const { language } = useAppLanguage();
-  const text = SESSION_DETAILS_TEXT[language];
-
   return (
     <Link
       to="/sessions"
       className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition hover:text-foreground"
     >
       <ArrowLeft className="h-4 w-4" />
-      {text.backToSessions}
+      Back to sessions
     </Link>
   );
 }
@@ -598,7 +431,7 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function StatusBadge({ status, label }: { status: string; label: string }) {
+function StatusBadge({ status }: { status: string }) {
   // Afiseaza statusul sesiunii cu o culoare relevanta
   const className =
     status === "COMPLETED"
@@ -609,7 +442,7 @@ function StatusBadge({ status, label }: { status: string; label: string }) {
 
   return (
     <span className={`inline-flex rounded-full border px-3 py-1.5 text-xs font-medium ${className}`}>
-      {label}
+      {status}
     </span>
   );
 }
@@ -618,17 +451,14 @@ function ChartWrap({
                      children,
                      empty,
                    }: {
-  children: ReactElement;
+  children: React.ReactElement;
   empty: boolean;
 }) {
   // Afiseaza un grafic sau o stare goala
-  const { language } = useAppLanguage();
-  const text = SESSION_DETAILS_TEXT[language];
-
   if (empty) {
     return (
       <div className="grid h-[260px] place-items-center text-sm text-muted-foreground">
-        {text.noRepetitionData}
+        No repetition data available
       </div>
     );
   }
@@ -640,23 +470,11 @@ function ChartWrap({
   );
 }
 
-// Stil pentru tooltipurile graficelor in light mode si dark mode
 const tooltipStyle = {
   background: "var(--popover)",
   border: "1px solid var(--border)",
   borderRadius: 10,
   fontSize: 12,
-  color: "var(--popover-foreground)",
-  boxShadow: "0 12px 30px rgba(0, 0, 0, 0.18)",
-} as const;
-
-const tooltipLabelStyle = {
-  color: "var(--popover-foreground)",
-  fontWeight: 600,
-} as const;
-
-const tooltipItemStyle = {
-  color: "var(--popover-foreground)",
 } as const;
 
 function toPercent(value?: number | null): number {
@@ -709,20 +527,4 @@ function formatTime(value?: string | null): string {
   }
 
   return new Date(value).toLocaleTimeString();
-}
-
-function formatStatus(
-  status: string,
-  statusValues: Record<string, string>,
-): string {
-  // Traduce statusul sesiunii pentru afisare
-  return statusValues[status] ?? status;
-}
-
-function formatQualityName(
-  qualityName: string,
-  qualityValues: Record<string, string>,
-): string {
-  // Traduce numele calitatii pentru afisare
-  return qualityValues[qualityName] ?? qualityName;
 }

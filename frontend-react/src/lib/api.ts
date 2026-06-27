@@ -4,14 +4,11 @@ const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:8080";
 export const WS_URL =
   import.meta.env.VITE_WS_URL ?? "ws://localhost:8080/ws/sensor";
 
-// Interfata pentru exercitii cu texte in romana si engleza
 export interface Exercise {
   id?: number;
   exerciseCode: number;
-  nameRo?: string;
-  nameEn?: string;
-  descriptionRo?: string;
-  descriptionEn?: string;
+  name: string;
+  description: string;
   active?: boolean;
 }
 
@@ -233,7 +230,7 @@ function normalizeRepetition(repetition: RepetitionResult): RepetitionResult {
 }
 
 function normalizeMlResult(result: MLAnalysisResult): MLAnalysisResult {
-  // Adapteaza raspunsul analizei prin invatare automata la formatul folosit in componentele React
+  // Adapteaza raspunsul ML la formatul folosit in componentele React
   return {
     ...result,
     exerciseConfidence: normalizeConfidence(result.exerciseConfidence),
@@ -340,33 +337,23 @@ export const api = {
     }),
 };
 
-// Exercitii locale de rezerva, folosite daca backend-ul nu raspunde
 export const EXERCISE_FALLBACK: Exercise[] = [
   {
     exerciseCode: 6,
-    nameRo: "Exercitiul 6",
-    nameEn: "Exercise 6",
-    descriptionRo:
-      "Stati asezat pe un scaun si tineti o greutate de 1 kg in mana dreapta. Intindeti bratul drept in fata corpului, putin deasupra genunchiului drept, cu palma orientata in sus. Indoiti cotul si ridicati greutatea pana cand antebratul ajunge perpendicular pe coapsa. Mentineti pozitia timp de 5 secunde, apoi reveniti la pozitia initiala.",
-    descriptionEn:
+    name: "Exercise 6",
+    description:
       "Sitting on a chair, holding a 1 kg weight in the right hand, extend the right arm in front of the body to just above the right knee with the palm facing upwards. Bending the elbow joint, raise the weight until the forearm is perpendicular with the thigh, hold for 5 s, and return to the initial position.",
   },
   {
     exerciseCode: 7,
-    nameRo: "Exercitiul 7",
-    nameEn: "Exercise 7",
-    descriptionRo:
-      "Stati in picioare, cu bratul drept intins pe langa corp si cu o greutate de 1 kg in mana dreapta. Ridicati bratul lateral, din umar, pana ajunge in pozitie orizontala, mentinand cotul drept. Mentineti pozitia timp de 5 secunde, apoi reveniti la pozitia initiala.",
-    descriptionEn:
+    name: "Exercise 7",
+    description:
       "Standing upright with the right arm holding a 1 kg weight and hanging straight down, raise the weight to the right side from the shoulder joint to a horizontal position while keeping the elbow joint straight, hold for 5 s, then return to the initial position.",
   },
   {
     exerciseCode: 8,
-    nameRo: "Exercitiul 8",
-    nameEn: "Exercise 8",
-    descriptionRo:
-      "Stati culcat cu fata in jos pe o suprafata plana ridicata, cu bratul drept lasat peste margine si indoit la nivelul cotului. Ridicati antebratul drept pana cand cotul se indreapta. Mentineti pozitia timp de 5 secunde, apoi reveniti la pozitia initiala.",
-    descriptionEn:
+    name: "Exercise 8",
+    description:
       "Lying facedown on a raised flat surface, hang the right arm over the side at the elbow. Raise the right forearm to straighten the elbow, hold for 5 s, then return to the initial position.",
   },
 ];
