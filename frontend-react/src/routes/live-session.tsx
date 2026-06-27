@@ -1,6 +1,12 @@
 // Pagina pentru monitorizarea live a unei sesiuni KinetoLive
 import { createFileRoute } from "@tanstack/react-router";
-import { type ComponentType, type ReactElement, useEffect, useMemo, useState } from "react";
+import {
+  type ComponentType,
+  type ReactElement,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import {
   Activity,
   BarChart3,
@@ -48,7 +54,21 @@ export const Route = createFileRoute("/live-session")({
 // Frecventa de esantionare folosita de sistemul KinetoLive
 const SAMPLE_RATE_HZ = 25;
 
+// Cod special pentru modul de detectie automata
+const AUTO_EXERCISE_CODE = 0;
+
 const SELECTED_EXERCISE_KEY = "kinetolive:selectedExercise";
+
+const AUTOMATIC_EXERCISE: Exercise = {
+  exerciseCode: AUTO_EXERCISE_CODE,
+  nameRo: "Detectie automata",
+  nameEn: "Automatic detection",
+  descriptionRo:
+    "Aplicatia detecteaza automat exercitiul executat, apoi foloseste modelul de calitate potrivit pentru exercitiul detectat.",
+  descriptionEn:
+    "The application automatically detects the performed exercise, then uses the proper quality model for the detected exercise.",
+  active: true,
+};
 
 // Texte pentru pagina Live Session in romana si engleza
 const LIVE_SESSION_TEXT = {
@@ -58,11 +78,12 @@ const LIVE_SESSION_TEXT = {
       "Porneste o sesiune de recuperare, transmite esantioane BNO055 prin WebSocket si analizeaza semnalul complet al miscarii.",
     simulatorNotice:
       "Modul simulator este activ. Semnalul afisat este generat artificial pentru testarea interfetei si nu este inregistrat de senzorul BNO055 real.",
-    sessionStarted: (sessionId: number, exerciseCode: number) =>
-      `Sesiunea #${sessionId} a fost pornita pentru Exercitiul ${exerciseCode}.`,
+    sessionStarted: (sessionId: number, exerciseName: string) =>
+      `Sesiunea #${sessionId} a fost pornita pentru ${exerciseName}.`,
     couldNotStartSession: "Nu s-a putut porni sesiunea:",
     mlAnalysisCompleted: "Analiza prin invatare automata a fost finalizata.",
-    mlAnalysisSaved: "Analiza prin invatare automata a fost finalizata si salvata.",
+    mlAnalysisSaved:
+      "Analiza prin invatare automata a fost finalizata si salvata.",
     liveBufferCleared: "Bufferul live a fost golit.",
     currentSession: "Sesiune curenta",
     notStarted: "Nepornita",
@@ -86,8 +107,7 @@ const LIVE_SESSION_TEXT = {
     rawAccelerometerSubtitle:
       "Acceleratia masurata pe axele X, Y si Z in timpul exercitiului.",
     rawGyroscopeTitle: "Viteza miscarii",
-    rawGyroscopeSubtitle:
-      "Viteza de rotatie a bratului pe axele X, Y si Z.",
+    rawGyroscopeSubtitle: "Viteza de rotatie a bratului pe axele X, Y si Z.",
     calibrationTitle: "Calibrare BNO055",
     calibrationSubtitle: "Ultimele valori de calibrare",
     noLiveSample: "Nu a fost primit inca niciun esantion live",
@@ -108,7 +128,7 @@ const LIVE_SESSION_TEXT = {
     analysisReadyMessage:
       "Rezultatul a fost generat. Verifica interpretarea si recomandarile de mai sus.",
     runAnalyzeMessage:
-      "Ruleaza \"Analizeaza\" sau \"Analizeaza si salveaza\" pentru a afisa rezultatul analizei prin invatare automata.",
+      'Ruleaza "Analizeaza" sau "Analizeaza si salveaza" pentru a afisa rezultatul analizei prin invatare automata.',
     liveControls: "Controale live",
     intendedExercise: "Exercitiu intentionat",
     session: "Sesiune",
@@ -143,7 +163,7 @@ const LIVE_SESSION_TEXT = {
     system: "Sistem",
     connected: "Conectat",
     emptyChartMessage:
-      "Porneste o sesiune, apoi apasa \"Porneste simulatorul\" sau transmite date reale de la senzor pentru a vedea miscarea bratului in timp real.",
+      'Porneste o sesiune, apoi apasa "Porneste simulatorul" sau transmite date reale de la senzor pentru a vedea miscarea bratului in timp real.',
     sensorValuesGuideTitle: "Cum interpretezi valorile?",
     sensorValuesGuideSubtitle:
       "Explicatii simple pentru valorile afisate in grafice",
@@ -155,11 +175,11 @@ const LIVE_SESSION_TEXT = {
       "Arata acceleratia bratului. Cand bratul este ridicat sau coborat, valorile se modifica. O executie buna produce o miscare lina, fara smucituri mari.",
     movementSpeedTechnical: "Detalii tehnice: giroscop",
     movementSpeedText:
-      "Arata cat de repede se roteste sau se schimba pozitia bratului. Daca miscarea este prea rapida, graficul are varfuri mari si aplicatia poate marca repetarea ca \"Rapid\".",
+      'Arata cat de repede se roteste sau se schimba pozitia bratului. Daca miscarea este prea rapida, graficul are varfuri mari si aplicatia poate marca repetarea ca "Rapid".',
     exerciseExecutionTitle: "Cum trebuie executat exercitiul?",
     exerciseExecutionTechnical: "Recomandare pentru pacient",
     exerciseExecutionText:
-      "Executa miscarea lent, complet si controlat. Evita smuciturile si incearca sa pastrezi acelasi ritm la fiecare repetare. Daca apare \"Rapid\", miscarea a fost prea rapida. Daca apare \"Amplitudine mica\", miscarea nu a fost completa sau bratul nu a fost ridicat suficient.",
+      'Executa miscarea lent, complet si controlat. Evita smuciturile si incearca sa pastrezi acelasi ritm la fiecare repetare. Daca apare "Rapid", miscarea a fost prea rapida. Daca apare "Amplitudine mica", miscarea nu a fost completa sau bratul nu a fost ridicat suficient.',
     connectionStatusValues: {
       idle: "In asteptare",
       open: "Conectat",
@@ -216,8 +236,8 @@ const LIVE_SESSION_TEXT = {
       "Start a rehabilitation session, stream BNO055 samples through WebSocket and analyze the complete movement signal.",
     simulatorNotice:
       "Simulator mode is active. The displayed signal is generated artificially for interface testing and is not recorded from the real BNO055 sensor.",
-    sessionStarted: (sessionId: number, exerciseCode: number) =>
-      `Session #${sessionId} was started for Exercise ${exerciseCode}.`,
+    sessionStarted: (sessionId: number, exerciseName: string) =>
+      `Session #${sessionId} was started for ${exerciseName}.`,
     couldNotStartSession: "Could not start session:",
     mlAnalysisCompleted: "Machine learning analysis was completed.",
     mlAnalysisSaved: "Machine learning analysis was completed and saved.",
@@ -244,8 +264,7 @@ const LIVE_SESSION_TEXT = {
     rawAccelerometerSubtitle:
       "Acceleration measured on the X, Y and Z axes during the exercise.",
     rawGyroscopeTitle: "Movement speed",
-    rawGyroscopeSubtitle:
-      "Arm rotation speed on the X, Y and Z axes.",
+    rawGyroscopeSubtitle: "Arm rotation speed on the X, Y and Z axes.",
     calibrationTitle: "BNO055 calibration",
     calibrationSubtitle: "Latest calibration values",
     noLiveSample: "No live sample received yet",
@@ -266,7 +285,7 @@ const LIVE_SESSION_TEXT = {
     analysisReadyMessage:
       "The result has been generated. Check the interpretation and recommendations above.",
     runAnalyzeMessage:
-      "Run \"Analyze\" or \"Analyze & save\" to display the Machine learning result.",
+      'Run "Analyze" or "Analyze & save" to display the Machine learning result.',
     liveControls: "Live controls",
     intendedExercise: "Intended exercise",
     session: "Session",
@@ -301,7 +320,7 @@ const LIVE_SESSION_TEXT = {
     system: "System",
     connected: "Connected",
     emptyChartMessage:
-      "Start a session, then press \"Start simulator\" or stream real sensor data to see the arm movement in real time.",
+      'Start a session, then press "Start simulator" or stream real sensor data to see the arm movement in real time.',
     sensorValuesGuideTitle: "How to read the values",
     sensorValuesGuideSubtitle:
       "Simple explanations for the values displayed in the charts",
@@ -313,11 +332,11 @@ const LIVE_SESSION_TEXT = {
       "Shows the acceleration of the arm. When the arm is raised or lowered, the values change. A good execution produces a smooth movement, without sudden jerks.",
     movementSpeedTechnical: "Technical detail: gyroscope",
     movementSpeedText:
-      "Shows how fast the arm rotates or changes position. If the movement is too fast, the chart shows large peaks and the application may classify the repetition as \"Rapid\".",
+      'Shows how fast the arm rotates or changes position. If the movement is too fast, the chart shows large peaks and the application may classify the repetition as "Rapid".',
     exerciseExecutionTitle: "How should the exercise be performed?",
     exerciseExecutionTechnical: "Patient recommendation",
     exerciseExecutionText:
-      "Perform the movement slowly, completely and in a controlled way. Avoid sudden jerks and try to keep the same rhythm for each repetition. If the result shows \"Rapid\", the movement was too fast. If it shows \"Small amplitude\", the movement was not complete or the arm was not raised enough.",
+      'Perform the movement slowly, completely and in a controlled way. Avoid sudden jerks and try to keep the same rhythm for each repetition. If the result shows "Rapid", the movement was too fast. If it shows "Small amplitude", the movement was not complete or the arm was not raised enough.',
     connectionStatusValues: {
       idle: "Idle",
       open: "Connected",
@@ -370,7 +389,6 @@ const LIVE_SESSION_TEXT = {
   },
 } as const;
 
-
 function LiveSessionPage() {
   const { language } = useAppLanguage();
   const text = LIVE_SESSION_TEXT[language];
@@ -384,9 +402,10 @@ function LiveSessionPage() {
   const [intended, setIntended] = useState<number>(() => {
     // Citeste exercitiul ales anterior din pagina Exercises
     const storedExercise = sessionStorage.getItem(SELECTED_EXERCISE_KEY);
-    const parsedExercise = Number(storedExercise);
+    const parsedExercise =
+      storedExercise === null ? Number.NaN : Number(storedExercise);
 
-    return Number.isFinite(parsedExercise) && parsedExercise > 0
+    return Number.isFinite(parsedExercise) && parsedExercise >= 0
       ? parsedExercise
       : 6;
   });
@@ -404,10 +423,7 @@ function LiveSessionPage() {
   const [success, setSuccess] = useState<string | null>(null);
 
   // Pastreaza tipul mesajului de succes pentru a se retraduce cand se schimba limba
-  type SuccessMessageType =
-    | "mlAnalysisCompleted"
-    | "mlAnalysisSaved"
-    | null;
+  type SuccessMessageType = "mlAnalysisCompleted" | "mlAnalysisSaved" | null;
 
   const [successMessageType, setSuccessMessageType] =
     useState<SuccessMessageType>(null);
@@ -459,9 +475,15 @@ function LiveSessionPage() {
 
   const selectedExercise = useMemo(() => {
     // Gaseste exercitiul selectat pentru descrierea din pagina
+    if (intended === AUTO_EXERCISE_CODE) {
+      return AUTOMATIC_EXERCISE;
+    }
+
     return (
       exercises.find((exercise) => exercise.exerciseCode === intended) ??
-      EXERCISE_FALLBACK.find((exercise) => exercise.exerciseCode === intended) ??
+      EXERCISE_FALLBACK.find(
+        (exercise) => exercise.exerciseCode === intended,
+      ) ??
       EXERCISE_FALLBACK[0]
     );
   }, [exercises, intended]);
@@ -550,9 +572,11 @@ function LiveSessionPage() {
 
       // Mesaj simplu, fara retraducere automata
       setSuccessMessageType(null);
-      setSuccess(text.sessionStarted(session.id, intended));
+      setSuccess(text.sessionStarted(session.id, selectedExerciseName));
     } catch (caughtError) {
-      setError(`${text.couldNotStartSession} ${(caughtError as Error).message}`);
+      setError(
+        `${text.couldNotStartSession} ${(caughtError as Error).message}`,
+      );
     } finally {
       setStarting(false);
     }
@@ -670,7 +694,8 @@ function LiveSessionPage() {
     }
   };
 
-  const canSendLiveData = Boolean(sessionId) && ws.status === "open";
+  // Permite simulatorul dupa ce exista o sesiune pornita
+  const canSendLiveData = Boolean(sessionId) && !sessionStopped;
 
   const resultQualityFeedback = result?.qualityName
     ? getQualityFeedback(result.qualityName, text.qualityFeedback)
@@ -750,7 +775,7 @@ function LiveSessionPage() {
         />
 
         <div className="min-w-0 space-y-3">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
             <StatCard
               label={text.currentSession}
               value={sessionId ? `#${sessionId}` : text.notStarted}
@@ -761,7 +786,11 @@ function LiveSessionPage() {
 
             <StatCard
               label={text.selectedExercise}
-              value={`${text.exercise} ${intended}`}
+              value={
+                intended === AUTO_EXERCISE_CODE
+                  ? selectedExerciseName
+                  : `${text.exercise} ${intended}`
+              }
               hint={selectedExerciseName}
               icon={Dumbbell}
               tone="cyan"
@@ -770,7 +799,11 @@ function LiveSessionPage() {
             <StatCard
               label={text.selectedPatient}
               value={selectedPatient?.fullName ?? text.noPatient}
-              hint={selectedPatient ? `ID ${selectedPatient.id}` : text.noSelectedPatient}
+              hint={
+                selectedPatient
+                  ? `ID ${selectedPatient.id}`
+                  : text.noSelectedPatient
+              }
               icon={UserRound}
               tone="mint"
             />
@@ -820,10 +853,38 @@ function LiveSessionPage() {
                   labelFormatter={(value) => `${value}s`}
                 />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Line type="monotone" dataKey="quatW" name="quatW" stroke="var(--primary)" dot={false} strokeWidth={2} />
-                <Line type="monotone" dataKey="quatX" name="quatX" stroke="var(--cyan)" dot={false} strokeWidth={2} />
-                <Line type="monotone" dataKey="quatY" name="quatY" stroke="var(--mint)" dot={false} strokeWidth={2} />
-                <Line type="monotone" dataKey="quatZ" name="quatZ" stroke="var(--amber)" dot={false} strokeWidth={2} />
+                <Line
+                  type="monotone"
+                  dataKey="quatW"
+                  name="quatW"
+                  stroke="var(--primary)"
+                  dot={false}
+                  strokeWidth={2}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="quatX"
+                  name="quatX"
+                  stroke="var(--cyan)"
+                  dot={false}
+                  strokeWidth={2}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="quatY"
+                  name="quatY"
+                  stroke="var(--mint)"
+                  dot={false}
+                  strokeWidth={2}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="quatZ"
+                  name="quatZ"
+                  stroke="var(--amber)"
+                  dot={false}
+                  strokeWidth={2}
+                />
               </LineChart>
             </LiveChart>
           </SectionCard>
@@ -855,9 +916,30 @@ function LiveSessionPage() {
                     labelFormatter={(value) => `${value}s`}
                   />
                   <Legend wrapperStyle={{ fontSize: 11 }} />
-                  <Line type="monotone" dataKey="accX" name="accX" stroke="var(--primary)" dot={false} strokeWidth={2} />
-                  <Line type="monotone" dataKey="accY" name="accY" stroke="var(--cyan)" dot={false} strokeWidth={2} />
-                  <Line type="monotone" dataKey="accZ" name="accZ" stroke="var(--mint)" dot={false} strokeWidth={2} />
+                  <Line
+                    type="monotone"
+                    dataKey="accX"
+                    name="accX"
+                    stroke="var(--primary)"
+                    dot={false}
+                    strokeWidth={2}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="accY"
+                    name="accY"
+                    stroke="var(--cyan)"
+                    dot={false}
+                    strokeWidth={2}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="accZ"
+                    name="accZ"
+                    stroke="var(--mint)"
+                    dot={false}
+                    strokeWidth={2}
+                  />
                 </LineChart>
               </LiveChart>
             </SectionCard>
@@ -888,9 +970,30 @@ function LiveSessionPage() {
                     labelFormatter={(value) => `${value}s`}
                   />
                   <Legend wrapperStyle={{ fontSize: 11 }} />
-                  <Line type="monotone" dataKey="gyrX" name="gyrX" stroke="var(--primary)" dot={false} strokeWidth={2} />
-                  <Line type="monotone" dataKey="gyrY" name="gyrY" stroke="var(--violet)" dot={false} strokeWidth={2} />
-                  <Line type="monotone" dataKey="gyrZ" name="gyrZ" stroke="var(--amber)" dot={false} strokeWidth={2} />
+                  <Line
+                    type="monotone"
+                    dataKey="gyrX"
+                    name="gyrX"
+                    stroke="var(--primary)"
+                    dot={false}
+                    strokeWidth={2}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="gyrY"
+                    name="gyrY"
+                    stroke="var(--violet)"
+                    dot={false}
+                    strokeWidth={2}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="gyrZ"
+                    name="gyrZ"
+                    stroke="var(--amber)"
+                    dot={false}
+                    strokeWidth={2}
+                  />
                 </LineChart>
               </LiveChart>
             </SectionCard>
@@ -932,13 +1035,28 @@ function LiveSessionPage() {
           </SectionCard>
 
           <div className="grid gap-3">
-            <SectionCard title={text.calibrationTitle} subtitle={text.calibrationSubtitle}>
+            <SectionCard
+              title={text.calibrationTitle}
+              subtitle={text.calibrationSubtitle}
+            >
               {lastSample ? (
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                  <CalibrationItem label={text.system} value={lastSample.calSys} />
-                  <CalibrationItem label={text.accelerometer} value={lastSample.calAcc} />
-                  <CalibrationItem label={text.gyroscope} value={lastSample.calGyr} />
-                  <CalibrationItem label={text.magnetometer} value={lastSample.calMag} />
+                  <CalibrationItem
+                    label={text.system}
+                    value={lastSample.calSys}
+                  />
+                  <CalibrationItem
+                    label={text.accelerometer}
+                    value={lastSample.calAcc}
+                  />
+                  <CalibrationItem
+                    label={text.gyroscope}
+                    value={lastSample.calGyr}
+                  />
+                  <CalibrationItem
+                    label={text.magnetometer}
+                    value={lastSample.calMag}
+                  />
                 </div>
               ) : (
                 <div className="grid min-h-[120px] place-items-center text-sm text-muted-foreground">
@@ -947,7 +1065,10 @@ function LiveSessionPage() {
               )}
             </SectionCard>
 
-            <SectionCard title={text.mlResultTitle} subtitle={text.mlResultSubtitle}>
+            <SectionCard
+              title={text.mlResultTitle}
+              subtitle={text.mlResultSubtitle}
+            >
               {result ? (
                 <div className="space-y-3">
                   {result.qualityName && resultQualityFeedback && (
@@ -988,7 +1109,10 @@ function LiveSessionPage() {
                       value={
                         resultQualityFeedback?.title ??
                         (result.qualityName
-                          ? formatQualityName(result.qualityName, text.qualityValues)
+                          ? formatQualityName(
+                            result.qualityName,
+                            text.qualityValues,
+                          )
                           : "—")
                       }
                       icon={CheckCircle2}
@@ -997,8 +1121,14 @@ function LiveSessionPage() {
                   </div>
 
                   <div className="grid gap-3 md:grid-cols-2">
-                    <ConfidenceBar label={text.exerciseConfidence} value={result.exerciseConfidence} />
-                    <ConfidenceBar label={text.qualityConfidence} value={result.qualityConfidence} />
+                    <ConfidenceBar
+                      label={text.exerciseConfidence}
+                      value={result.exerciseConfidence}
+                    />
+                    <ConfidenceBar
+                      label={text.qualityConfidence}
+                      value={result.qualityConfidence}
+                    />
                   </div>
 
                   <ResultStatusNotice
@@ -1079,6 +1209,14 @@ function LiveControlsPanel({
   const { language } = useAppLanguage();
   const text = LIVE_SESSION_TEXT[language];
 
+  // Titlul afisat pentru exercitiul selectat
+  const selectedExerciseTitle =
+    intended === AUTO_EXERCISE_CODE
+      ? language === "ro"
+        ? selectedExercise.nameRo || "Detectie automata"
+        : selectedExercise.nameEn || "Automatic detection"
+      : `${text.exercise} ${intended}`;
+
   return (
     <aside className="xl:sticky xl:top-24 xl:max-h-[calc(100vh-7rem)] xl:self-start xl:overflow-y-auto xl:pr-1">
       <div className="rounded-2xl border border-border bg-background p-4 shadow-sm">
@@ -1088,7 +1226,7 @@ function LiveControlsPanel({
               {text.liveControls}
             </div>
             <div className="mt-1 text-xl font-semibold text-foreground">
-              {text.exercise} {intended}
+              {selectedExerciseTitle}
             </div>
           </div>
 
@@ -1109,31 +1247,47 @@ function LiveControlsPanel({
           disabled={Boolean(sessionId)}
           className="mt-2 h-10 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none transition focus:border-primary disabled:cursor-not-allowed disabled:opacity-60"
         >
+          <option value={AUTO_EXERCISE_CODE}>
+            {language === "ro" ? "Detectie automata" : "Automatic detection"}
+          </option>
+
           {exercises
-            .filter((exercise) => exercise.active !== false)
+            .filter(
+              (exercise) =>
+                exercise.active !== false &&
+                exercise.exerciseCode !== AUTO_EXERCISE_CODE,
+            )
             .map((exercise) => {
-              const optionName =
+              const exerciseName =
                 language === "ro"
-                  ? exercise.nameRo ||
-                  exercise.nameEn ||
-                  `${text.exercise} ${exercise.exerciseCode}`
-                  : exercise.nameEn ||
-                  exercise.nameRo ||
-                  `${text.exercise} ${exercise.exerciseCode}`;
+                  ? exercise.nameRo || exercise.nameEn
+                  : exercise.nameEn || exercise.nameRo;
 
               return (
                 <option key={exercise.exerciseCode} value={exercise.exerciseCode}>
-                  {optionName}
+                  {exerciseName || `${text.exercise} ${exercise.exerciseCode}`}
                 </option>
               );
             })}
         </select>
 
         <div className="mt-4 grid grid-cols-2 gap-2">
-          <InfoPill label={text.session} value={sessionId ? `#${sessionId}` : text.noSession} />
+          <InfoPill
+            label={text.session}
+            value={sessionId ? `#${sessionId}` : text.noSession}
+          />
           <InfoPill label={text.samples} value={String(sampleCount)} />
-          <InfoPill label={text.connection} value={formatConnectionStatus(wsStatus, text.connectionStatusValues)} />
-          <InfoPill label={text.source} value={simulating ? text.simulator : text.sensorReady} />
+          <InfoPill
+            label={text.connection}
+            value={formatConnectionStatus(
+              wsStatus,
+              text.connectionStatusValues,
+            )}
+          />
+          <InfoPill
+            label={text.source}
+            value={simulating ? text.simulator : text.sensorReady}
+          />
         </div>
 
         <div className="mt-4 grid gap-2">
@@ -1141,7 +1295,11 @@ function LiveControlsPanel({
             onClick={onStartSession}
 
             // Permite pornirea unei sesiuni noi daca sesiunea curenta a fost oprita
-            disabled={!canStartSession || starting || (Boolean(sessionId) && !sessionStopped)}
+            disabled={
+              !canStartSession ||
+              starting ||
+              (Boolean(sessionId) && !sessionStopped)
+            }
 
             className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
           >
@@ -1206,13 +1364,18 @@ function LiveControlsPanel({
             {text.clearLiveBuffer}
           </button>
         </div>
-
       </div>
     </aside>
   );
 }
 
-function SourceBadge({ simulating, hasLiveData }: { simulating: boolean; hasLiveData: boolean }) {
+function SourceBadge({
+                       simulating,
+                       hasLiveData,
+                     }: {
+  simulating: boolean;
+  hasLiveData: boolean;
+}) {
   // Afiseaza sursa datelor live
   const { language } = useAppLanguage();
   const text = LIVE_SESSION_TEXT[language];
@@ -1300,9 +1463,7 @@ function SensorGuideCard({
         {technicalLabel}
       </div>
 
-      <p className="mt-2 text-sm leading-6 text-muted-foreground">
-        {text}
-      </p>
+      <p className="mt-2 text-sm leading-6 text-muted-foreground">{text}</p>
     </div>
   );
 }
@@ -1311,7 +1472,9 @@ function InfoPill({ label, value }: { label: string; value: string }) {
   // Afiseaza o informatie scurta in panoul de control
   return (
     <div className="rounded-xl border border-border bg-muted/30 px-3 py-2">
-      <div className="truncate text-xs font-medium text-foreground">{value}</div>
+      <div className="break-words text-xs font-medium text-foreground">
+        {value}
+      </div>
       <div className="text-xs text-muted-foreground">{label}</div>
     </div>
   );
@@ -1387,10 +1550,14 @@ function QualityFeedbackCard({
 }) {
   // Afiseaza rezultatul analizei pe intelesul pacientului
   return (
-    <div className={`rounded-3xl border p-5 shadow-sm ${qualityPanelClass(quality)}`}>
+    <div
+      className={`rounded-3xl border p-5 shadow-sm ${qualityPanelClass(quality)}`}
+    >
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="flex items-start gap-3">
-          <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl ${qualityIconClass(quality)}`}>
+          <div
+            className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl ${qualityIconClass(quality)}`}
+          >
             <CheckCircle2 className="h-5 w-5" />
           </div>
 
@@ -1406,7 +1573,9 @@ function QualityFeedbackCard({
             <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
               <span>{detectedQualityTypeLabel}</span>
               <span className="text-muted-foreground/60">•</span>
-              <span className="font-semibold text-foreground">{detectedQualityType}</span>
+              <span className="font-semibold text-foreground">
+                {detectedQualityType}
+              </span>
             </div>
           </div>
         </div>
@@ -1498,7 +1667,9 @@ function ResultMetric({
           {value}
         </span>
       ) : (
-        <div className="mt-3 text-lg font-semibold text-foreground">{value}</div>
+        <div className="mt-3 text-lg font-semibold text-foreground">
+          {value}
+        </div>
       )}
     </div>
   );
@@ -1549,7 +1720,9 @@ function LiveChart({
 
   if (empty) {
     return (
-      <div className={`grid ${heightClass} place-items-center text-sm text-muted-foreground`}>
+      <div
+        className={`grid ${heightClass} place-items-center text-sm text-muted-foreground`}
+      >
         {text.emptyChartMessage}
       </div>
     );

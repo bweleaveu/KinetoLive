@@ -223,7 +223,7 @@ function ExercisesPage() {
             {text.loadingExercises}
           </div>
         ) : (
-          <div className="grid gap-4 xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 2xl:grid-cols-2">
             {/* Afiseaza cardurile exercitiilor cu nume si descriere in functie de limba */}
             {activeExercises.map((exercise) => {
               const exerciseName =

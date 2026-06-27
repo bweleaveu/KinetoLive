@@ -10,6 +10,10 @@ public record MlAnalysisPayloadDto(
         Double durationSeconds,
         boolean readyForAnalysis,
         String message,
+
+        // Codul ales de doctor: 0 = detectie automata, 6/7/8 = mod manual
+        Integer selectedExerciseCode,
+
         List<String> featureColumns,
         List<MlSignalSampleDto> samples
 ) {
