@@ -1,15 +1,13 @@
-// Repository pentru profilurile pacientilor
+// Repository pentru profilurile medicale ale pacientilor
 package ro.licenta.kinetolive.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
-import ro.licenta.kinetolive.entity.AppUser;
+import ro.licenta.kinetolive.entity.DoctorProfile;
 import ro.licenta.kinetolive.entity.PatientProfile;
 
-import java.util.Optional;
+import java.util.List;
 
 public interface PatientProfileRepository extends JpaRepository<PatientProfile, Long> {
 
-    Optional<PatientProfile> findByUser(AppUser user);
-
-    boolean existsByUser(AppUser user);
+    List<PatientProfile> findAllByAssignedDoctorOrderByLastNameAscFirstNameAsc(DoctorProfile assignedDoctor);
 }

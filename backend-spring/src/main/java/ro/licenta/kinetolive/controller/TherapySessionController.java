@@ -3,6 +3,7 @@ package ro.licenta.kinetolive.controller;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import ro.licenta.kinetolive.dto.*;
 import ro.licenta.kinetolive.service.TherapySessionService;
@@ -17,8 +18,11 @@ public class TherapySessionController {
     private final TherapySessionService therapySessionService;
 
     @PostMapping("/start")
-    public TherapySessionResponseDto startSession(@Valid @RequestBody StartTherapySessionRequest request) {
-        return therapySessionService.startSession(request);
+    public TherapySessionResponseDto startSession(
+            Authentication authentication,
+            @Valid @RequestBody StartTherapySessionRequest request
+    ) {
+        return therapySessionService.startSession(authentication.getName(), request);
     }
 
     @PutMapping("/{sessionId}/complete")
@@ -29,13 +33,27 @@ public class TherapySessionController {
         return therapySessionService.completeSession(sessionId, request);
     }
 
+    @GetMapping("/{sessionId}")
+    public TherapySessionResponseDto getSessionById(
+            Authentication authentication,
+            @PathVariable Long sessionId
+    ) {
+        return therapySessionService.getSessionById(authentication.getName(), sessionId);
+    }
+
     @GetMapping("/patient/{patientId}")
-    public List<TherapySessionResponseDto> getSessionsByPatient(@PathVariable Long patientId) {
-        return therapySessionService.getSessionsByPatient(patientId);
+    public List<TherapySessionResponseDto> getSessionsByPatient(
+            Authentication authentication,
+            @PathVariable Long patientId
+    ) {
+        return therapySessionService.getSessionsByPatient(authentication.getName(), patientId);
     }
 
     @GetMapping("/{sessionId}/repetitions")
-    public List<RepetitionResultResponseDto> getRepetitionsBySession(@PathVariable Long sessionId) {
-        return therapySessionService.getRepetitionsBySession(sessionId);
+    public List<RepetitionResultResponseDto> getRepetitionsBySession(
+            Authentication authentication,
+            @PathVariable Long sessionId
+    ) {
+        return therapySessionService.getRepetitionsBySession(authentication.getName(), sessionId);
     }
 }

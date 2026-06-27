@@ -9,5 +9,7 @@ import java.util.List;
 
 public interface TherapySessionRepository extends JpaRepository<TherapySession, Long> {
 
+    List<TherapySession> findAllByPatient(PatientProfile patient);
+
     List<TherapySession> findAllByPatientOrderByStartedAtDesc(PatientProfile patient);
 }

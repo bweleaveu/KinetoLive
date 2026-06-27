@@ -15,9 +15,10 @@ public class WebSocketConfig implements WebSocketConfigurer {
 
     private final SensorWebSocketHandler sensorWebSocketHandler;
 
+    // Permite conexiuni WebSocket si din browser, si din ESP32
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
         registry.addHandler(sensorWebSocketHandler, "/ws/sensor")
-                .setAllowedOrigins("*");
+                .setAllowedOriginPatterns("*");
     }
 }

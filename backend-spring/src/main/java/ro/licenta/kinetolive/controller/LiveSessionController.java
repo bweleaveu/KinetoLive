@@ -38,13 +38,19 @@ public class LiveSessionController {
         return liveSessionMlPayloadService.buildMlPayload(sessionId);
     }
 
+    // Endpoint temporar de test pentru a verifica daca request-ul ajunge in controller
     @PostMapping("/{sessionId}/analyze")
     public MlAnalysisResponseDto analyzeLiveSession(@PathVariable Long sessionId) {
+        System.out.println("A AJUNS IN ANALYZE pentru sesiunea: " + sessionId);
+
         return liveSessionAnalysisService.analyzeLiveSession(sessionId);
     }
 
+    // Endpoint temporar de test pentru a verifica daca request-ul ajunge in controller
     @PostMapping("/{sessionId}/analyze-and-save")
     public LiveSessionAnalysisResultDto analyzeAndSaveLiveSession(@PathVariable Long sessionId) {
+        System.out.println("A AJUNS IN ANALYZE AND SAVE pentru sesiunea: " + sessionId);
+
         return liveSessionAnalysisService.analyzeAndSaveLiveSession(sessionId);
     }
 
