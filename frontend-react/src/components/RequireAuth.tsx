@@ -2,9 +2,22 @@
 import { useEffect, type ReactNode } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useAuth } from "@/hooks/useAuth";
+import { useAppLanguage } from "@/hooks/useAppLanguage";
+
+const REQUIRE_AUTH_TEXT = {
+  ro: {
+    loading: "Se incarca...",
+  },
+  en: {
+    loading: "Loading...",
+  },
+} as const;
 
 export function RequireAuth({ children }: { children: ReactNode }) {
   const { status } = useAuth();
+  const { language } = useAppLanguage();
+  const text = REQUIRE_AUTH_TEXT[language];
+
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -18,7 +31,7 @@ export function RequireAuth({ children }: { children: ReactNode }) {
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="flex items-center gap-3 text-sm text-muted-foreground">
           <span className="h-3 w-3 animate-pulse rounded-full bg-primary" />
-          Se incarca...
+          {text.loading}
         </div>
       </div>
     );
