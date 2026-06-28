@@ -6,7 +6,6 @@ import org.springframework.stereotype.Service;
 import ro.licenta.kinetolive.dto.MlAnalysisPayloadDto;
 import ro.licenta.kinetolive.dto.MlSignalSampleDto;
 import ro.licenta.kinetolive.dto.SensorSampleMessage;
-
 import ro.licenta.kinetolive.entity.TherapySession;
 import ro.licenta.kinetolive.repository.TherapySessionRepository;
 
@@ -32,13 +31,6 @@ public class LiveSessionMlPayloadService {
     private final TherapySessionRepository therapySessionRepository;
 
     public MlAnalysisPayloadDto buildMlPayload(Long sessionId) {
-        TherapySession therapySession = therapySessionRepository.findById(sessionId)
-                .orElseThrow(() -> new RuntimeException("Therapy session not found: " + sessionId));
-
-        Integer selectedExerciseCode = therapySession.getIntendedExercise() != null
-                ? therapySession.getIntendedExercise().getExerciseCode()
-                : null;
-
         List<SensorSampleMessage> bufferedSamples = liveSessionBufferService.getSamples(sessionId);
 
         List<MlSignalSampleDto> mlSamples = bufferedSamples
@@ -56,6 +48,8 @@ public class LiveSessionMlPayloadService {
                 ? "Session data is ready for ML analysis."
                 : "Not enough samples for ML analysis. At least 25 samples are recommended.";
 
+        Integer selectedExerciseCode = resolveSelectedExerciseCode(sessionId);
+
         return new MlAnalysisPayloadDto(
                 sessionId,
                 SAMPLING_FREQUENCY_HZ,
@@ -67,6 +61,14 @@ public class LiveSessionMlPayloadService {
                 FEATURE_COLUMNS,
                 mlSamples
         );
+    }
+
+    private Integer resolveSelectedExerciseCode(Long sessionId) {
+        // Citeste exercitiul selectat la pornirea sesiunii
+        return therapySessionRepository.findById(sessionId)
+                .map(TherapySession::getIntendedExercise)
+                .map(exercise -> exercise != null ? exercise.getExerciseCode() : null)
+                .orElse(null);
     }
 
     private MlSignalSampleDto mapToMlSignalSample(SensorSampleMessage sample) {

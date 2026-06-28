@@ -7,11 +7,21 @@ public record MlRepetitionPredictionResponseDto(
         Integer predictedExerciseCode,
         String predictedExerciseName,
         Double exerciseConfidence,
+        Integer modelDetectedExerciseCode,
+        String modelDetectedExerciseName,
+        Double modelDetectedExerciseConfidence,
+        Integer qualityModelExerciseCode,
+        String qualityModelExerciseName,
         Integer predictedQualityCode,
         String predictedQualityName,
         Double qualityConfidence,
         Integer sampleCount,
         Integer startSample,
-        Integer endSample
+        Integer endSample,
+        Integer classificationStartSample,
+        Integer classificationEndSample,
+        Double motionAmplitude,
+        Double accEnergy,
+        Double gyrEnergy
 ) {
 }
