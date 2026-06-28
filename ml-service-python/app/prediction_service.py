@@ -207,7 +207,12 @@ class PredictionService:
                 repetitions=[],
             )
 
-        segments, segment_info, detection_info = segment_repetitions(signal_data)
+        selected_exercise_code = getattr(payload, "selectedExerciseCode", None)
+
+        segments, segment_info, detection_info = segment_repetitions(
+            signal_data,
+            selected_exercise_code,
+        )
 
         if not segments:
             return MlAnalysisResponseDto(

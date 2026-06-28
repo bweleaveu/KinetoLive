@@ -3,6 +3,11 @@ package ro.licenta.kinetolive.dto;
 
 public record DeviceControlStateResponse(
         boolean streamingEnabled,
-        Long sessionId
+        Long sessionId,
+
+        // Comanda de calibrare preluata de ESP32 la urmatorul polling.
+        Long calibrationCommandId,
+        String calibrationCommand,
+        boolean calibrationMonitoringEnabled
 ) {
 }
