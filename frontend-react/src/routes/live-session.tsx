@@ -1554,7 +1554,7 @@ function RepetitionsTable({
               <th className="px-4 py-3">#</th>
               <th className="px-4 py-3">{text.quality}</th>
               <th className="px-4 py-3">{text.qualityConfidence}</th>
-              <th className="px-4 py-3">{text.modelDetectedExercise}</th>
+              <th className="px-4 py-3">{text.evaluatedExercise}</th>
               <th className="px-4 py-3">{text.segment}</th>
               <th className="px-4 py-3">{text.classificationWindow}</th>
               <th className="px-4 py-3">{text.samples}</th>
@@ -1583,15 +1583,29 @@ function RepetitionsTable({
                     {toPercent(repetition.qualityConfidence).toFixed(1)}%
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">
-                    {formatExerciseResult(
-                      repetition.modelDetectedExerciseCode ?? repetition.exerciseCode,
-                      text,
-                    )}
-                    {typeof repetition.modelDetectedExerciseConfidence === "number" && (
-                      <span className="ml-1 text-xs">
-                        ({toPercent(repetition.modelDetectedExerciseConfidence).toFixed(1)}%)
-                      </span>
-                    )}
+                    <div>
+                      {formatExerciseResult(
+                        repetition.qualityModelExerciseCode ??
+                          result.qualityModelExerciseCode ??
+                          repetition.exerciseCode,
+                        text,
+                      )}
+                    </div>
+                    {repetition.modelDetectedExerciseCode &&
+                      repetition.modelDetectedExerciseCode !==
+                        (repetition.qualityModelExerciseCode ?? result.qualityModelExerciseCode) && (
+                        <div className="mt-1 text-xs text-muted-foreground/70">
+                          {text.modelDetectedExercise}: {formatExerciseResult(
+                            repetition.modelDetectedExerciseCode,
+                            text,
+                          )}
+                          {typeof repetition.modelDetectedExerciseConfidence === "number" && (
+                            <span className="ml-1">
+                              ({toPercent(repetition.modelDetectedExerciseConfidence).toFixed(1)}%)
+                            </span>
+                          )}
+                        </div>
+                      )}
                   </td>
                   <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
                     {formatSampleRange(repetition.startSample, repetition.endSample)}
