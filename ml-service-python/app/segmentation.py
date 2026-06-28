@@ -15,16 +15,22 @@ AXIS_NAMES = ("x", "y", "z")
 # Astfel, tremuratul rapid pe axe secundare nu mai creeaza varfuri false.
 SEGMENTATION_CONFIG_BY_EXERCISE = {
     6: {
-        "prominence_factor": 0.13,
-        "height_factor": 0.20,
-        "min_peak_distance_seconds": 0.44,
-        "active_threshold_factor": 0.22,
-        "active_margin_seconds": 0.50,
-        "min_segment_seconds": 0.78,
-        "intentional_window_seconds": 0.36,
-        "axis_selection_ratio": 0.42,
-        "min_coherent_amplitude_ratio": 0.10,
-        "tremor_rejection_ratio": 0.62,
+        # E6 poate pierde repetarile rapide sau cele cu amplitudine mica daca pragurile sunt prea stricte.
+        # Folosim detectie mai permisiva pe semnalul filtrat, apoi pastram filtrul global de tremor.
+        "prominence_factor": 0.10,
+        "height_factor": 0.14,
+        "min_peak_distance_seconds": 0.34,
+        "active_threshold_factor": 0.18,
+        "active_margin_seconds": 0.60,
+        "min_segment_seconds": 0.48,
+        "intentional_window_seconds": 0.30,
+        "axis_selection_ratio": 0.36,
+        "min_coherent_amplitude_ratio": 0.07,
+        "tremor_rejection_ratio": 0.68,
+        "enable_relaxed_peak_rescue": True,
+        "relaxed_prominence_multiplier": 0.58,
+        "relaxed_height_factor": 0.09,
+        "relaxed_min_peak_distance_seconds": 0.28,
     },
     7: {
         "prominence_factor": 0.13,
@@ -39,16 +45,22 @@ SEGMENTATION_CONFIG_BY_EXERCISE = {
         "tremor_rejection_ratio": 0.62,
     },
     8: {
-        "prominence_factor": 0.15,
-        "height_factor": 0.20,
-        "min_peak_distance_seconds": 0.50,
-        "active_threshold_factor": 0.24,
-        "active_margin_seconds": 0.48,
-        "min_segment_seconds": 0.50,
-        "intentional_window_seconds": 0.32,
-        "axis_selection_ratio": 0.40,
-        "min_coherent_amplitude_ratio": 0.09,
-        "tremor_rejection_ratio": 0.66,
+        # E8 are repetari mai apropiate si amplitudinile mici pot produce varfuri mai joase.
+        # Folosim praguri mai permisive pe semnalul filtrat, nu pe semnalul brut.
+        "prominence_factor": 0.09,
+        "height_factor": 0.12,
+        "min_peak_distance_seconds": 0.32,
+        "active_threshold_factor": 0.18,
+        "active_margin_seconds": 0.58,
+        "min_segment_seconds": 0.38,
+        "intentional_window_seconds": 0.26,
+        "axis_selection_ratio": 0.34,
+        "min_coherent_amplitude_ratio": 0.06,
+        "tremor_rejection_ratio": 0.70,
+        "enable_relaxed_peak_rescue": True,
+        "relaxed_prominence_multiplier": 0.55,
+        "relaxed_height_factor": 0.08,
+        "relaxed_min_peak_distance_seconds": 0.24,
     },
 }
 
@@ -100,6 +112,14 @@ def get_segmentation_config(selected_exercise_code):
     config["intentional_window_samples"] = make_odd_window(
         max(3, int(round(config["intentional_window_seconds"] * FS))),
     )
+
+    if config.get("enable_relaxed_peak_rescue"):
+        config["relaxed_min_peak_distance_samples"] = max(
+            1,
+            int(round(config.get("relaxed_min_peak_distance_seconds", 0.28) * FS)),
+        )
+    else:
+        config["relaxed_min_peak_distance_samples"] = config["min_peak_distance_samples"]
 
     return config
 
@@ -430,6 +450,48 @@ def find_active_range(motion_signal, config):
     return active_start, active_end, float(active_threshold), float(amplitude)
 
 
+def merge_peak_candidates(primary_peaks, secondary_peaks, motion_signal, min_distance_samples):
+    # Combina varfurile detectate strict cu varfurile salvate de al doilea prag.
+    # Cand doua varfuri sunt prea apropiate, il pastram pe cel cu valoarea mai mare.
+    primary_peaks = np.asarray(primary_peaks, dtype=int)
+    secondary_peaks = np.asarray(secondary_peaks, dtype=int)
+    motion_signal = np.asarray(motion_signal, dtype=float)
+
+    if len(primary_peaks) == 0:
+        candidates = secondary_peaks
+    elif len(secondary_peaks) == 0:
+        candidates = primary_peaks
+    else:
+        candidates = np.unique(np.concatenate([primary_peaks, secondary_peaks]))
+
+    if len(candidates) <= 1:
+        return candidates.astype(int)
+
+    candidates = np.sort(candidates)
+    min_distance_samples = max(1, int(min_distance_samples))
+    merged = []
+
+    for peak in candidates:
+        peak = int(peak)
+
+        if peak < 0 or peak >= len(motion_signal):
+            continue
+
+        if not merged:
+            merged.append(peak)
+            continue
+
+        previous_peak = merged[-1]
+
+        if peak - previous_peak < min_distance_samples:
+            if motion_signal[peak] > motion_signal[previous_peak]:
+                merged[-1] = peak
+        else:
+            merged.append(peak)
+
+    return np.asarray(merged, dtype=int)
+
+
 def detect_repetition_peaks(segment_data, selected_exercise_code=None):
     # Detecteaza varfurile importante ale miscarii intentionate
     config = get_segmentation_config(selected_exercise_code)
@@ -481,6 +543,34 @@ def detect_repetition_peaks(segment_data, selected_exercise_code=None):
         height=peak_height_threshold,
     )
 
+    relaxed_local_peaks = np.asarray([], dtype=int)
+    relaxed_prominence_threshold = None
+    relaxed_peak_height_threshold = None
+
+    if config.get("enable_relaxed_peak_rescue"):
+        # Pentru E8, repetarile rapide si cele cu amplitudine mica au varfuri mai mici.
+        # Al doilea prag salveaza varfurile lipsa, iar filtrul de tremor ramane activ ulterior.
+        relaxed_prominence_threshold = max(
+            prominence_threshold * config.get("relaxed_prominence_multiplier", 0.60),
+            MIN_PEAK_PROMINENCE,
+        )
+        relaxed_peak_height_threshold = percentile_20 + signal_amplitude * config.get(
+            "relaxed_height_factor",
+            0.08,
+        )
+        relaxed_local_peaks, _ = find_peaks(
+            active_motion_signal,
+            distance=config["relaxed_min_peak_distance_samples"],
+            prominence=relaxed_prominence_threshold,
+            height=relaxed_peak_height_threshold,
+        )
+        local_peaks = merge_peak_candidates(
+            local_peaks,
+            relaxed_local_peaks,
+            active_motion_signal,
+            config["relaxed_min_peak_distance_samples"],
+        )
+
     peaks = local_peaks + active_start
 
     detection_debug = {
@@ -494,6 +584,11 @@ def detect_repetition_peaks(segment_data, selected_exercise_code=None):
         "minPeakDistanceSamples": int(config["min_peak_distance_samples"]),
         "prominenceFactor": float(config["prominence_factor"]),
         "heightFactor": float(config["height_factor"]),
+        "relaxedPeakRescueEnabled": bool(config.get("enable_relaxed_peak_rescue", False)),
+        "relaxedPeakCount": int(len(relaxed_local_peaks)) if config.get("enable_relaxed_peak_rescue") else 0,
+        "relaxedProminence": float(relaxed_prominence_threshold) if relaxed_prominence_threshold is not None else None,
+        "relaxedHeightThreshold": float(relaxed_peak_height_threshold) if relaxed_peak_height_threshold is not None else None,
+        "relaxedMinPeakDistanceSamples": int(config.get("relaxed_min_peak_distance_samples", config["min_peak_distance_samples"])),
     }
 
     return peaks, motion_signal, prominence_threshold, detection_debug
