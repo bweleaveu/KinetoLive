@@ -4,7 +4,11 @@ import numpy as np
 
 from app.config import MODELS_ROOT, FS, EXERCISE_NAMES, QUALITY_NAMES
 from app.feature_extraction import extract_segment_features, FEATURE_NAMES
-from app.segmentation import VALID_EXERCISE_CODES, segment_repetitions
+from app.segmentation import (
+    VALID_EXERCISE_CODES,
+    calculate_intentional_motion_metrics,
+    segment_repetitions,
+)
 from app.schemas import MlAnalysisPayloadDto, MlAnalysisResponseDto, RepetitionPredictionDto
 
 # Praguri pentru detectarea unei sesiuni fara miscare reala
@@ -89,8 +93,8 @@ def safe_mean_probability(probability_sum, count):
     }
 
 
-def get_signal_energy(segment):
-    # Calculeaza energia si amplitudinea miscarii pentru debug si corectia calitatii
+def get_signal_energy(segment, exercise_code=None):
+    # Calculeaza energia si amplitudinea miscarii intentionate pentru debug si corectia calitatii
     segment = np.asarray(segment, dtype=float)
 
     if len(segment) == 0:
@@ -102,30 +106,14 @@ def get_signal_energy(segment):
     acc_energy = float(np.mean(np.sum(acc ** 2, axis=1)))
     gyr_energy = float(np.mean(np.sum(gyr ** 2, axis=1)))
 
-    acc_centered = acc - np.median(acc, axis=0)
-    acc_dynamic = np.linalg.norm(acc_centered, axis=1)
-
-    gyr_axis_ranges = np.percentile(gyr, 95, axis=0) - np.percentile(gyr, 5, axis=0)
-    acc_axis_ranges = np.percentile(acc_centered, 95, axis=0) - np.percentile(acc_centered, 5, axis=0)
-    gyr_magnitude = np.linalg.norm(gyr, axis=1)
-
-    # Pentru amplitudine mica conteaza foarte mult axa dominanta, nu doar norma vectoriala.
-    # Daca pacientul roteste mana pe axa X, max(gyr_axis_ranges) surprinde mai bine miscarea.
-    dominant_gyr_range = float(np.max(np.abs(gyr_axis_ranges)))
-    dominant_acc_range = float(np.max(np.abs(acc_axis_ranges)))
-    gyr_magnitude_range = float(
-        np.percentile(gyr_magnitude, 95) - np.percentile(gyr_magnitude, 5)
-    )
-    acc_dynamic_range = float(
-        np.percentile(acc_dynamic, 95) - np.percentile(acc_dynamic, 5)
+    intentional_metrics = calculate_intentional_motion_metrics(
+        segment,
+        exercise_code,
     )
 
-    motion_amplitude = float(
-        0.55 * dominant_gyr_range
-        + 0.25 * gyr_magnitude_range
-        + 0.15 * dominant_acc_range
-        + 0.05 * acc_dynamic_range
-    )
+    # Nu folosim amplitudinea bruta pe norma vectoriala, deoarece tremuratul poate umfla
+    # artificial gyrX/gyrZ/gyrY si poate face o repetare cu amplitudine mica sa para normala.
+    motion_amplitude = float(intentional_metrics["motionAmplitude"])
 
     return motion_amplitude, acc_energy, gyr_energy
 
@@ -898,6 +886,7 @@ class PredictionService:
             exercise_prediction = exercise_prediction_items[index]
             motion_amplitude, acc_energy, gyr_energy = get_signal_energy(
                 classification_input["segment"],
+                quality_model_exercise_code,
             )
 
             repetition_predictions.append(
