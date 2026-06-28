@@ -66,8 +66,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/exercises").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/exercises/**").permitAll()
 
-                        // ESP32 citeste starea fara token
+                        // ESP32 citeste starea si raporteaza calibrarea fara token
                         .requestMatchers(HttpMethod.GET, "/api/device-control/state").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/device-calibration/report").permitAll()
 
                         // WebSocket-ul pentru ESP32 ramane public
                         .requestMatchers("/ws/sensor").permitAll()

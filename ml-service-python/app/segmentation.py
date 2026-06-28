@@ -6,13 +6,36 @@ from scipy.signal import find_peaks
 FS = 25
 
 SMOOTHING_WINDOW = 5
-MIN_PEAK_DISTANCE = int(0.30 * FS)
-PEAK_PROMINENCE_FACTOR = 0.05
 MIN_PEAK_PROMINENCE = 1e-8
 
 PEAKS_PER_REPETITION = 2
 REPETITION_SEGMENT_MARGIN = int(0.80 * FS)
-MIN_FINAL_REPETITION_DURATION = int(2.20 * FS)
+
+# Parametri diferiti pentru fiecare exercitiu
+# E6 trebuie sa fie mai permisiv, altfel pierde repetari reale.
+PEAK_PROMINENCE_FACTOR_BY_EXERCISE = {
+    6: 0.04,
+    7: 0.06,
+    8: 0.10,
+}
+
+MIN_PEAK_DISTANCE_BY_EXERCISE = {
+    6: int(0.22 * FS),
+    7: int(0.26 * FS),
+    8: int(0.40 * FS),
+}
+
+MIN_FINAL_REPETITION_DURATION_BY_EXERCISE = {
+    6: int(1.20 * FS),
+    7: int(1.60 * FS),
+    8: int(0.80 * FS),
+}
+
+FILTER_OVERLAP_BY_EXERCISE = {
+    6: False,
+    7: False,
+    8: False,
+}
 
 
 def calculate_motion_signal(segment_data):
@@ -38,12 +61,24 @@ def calculate_motion_signal(segment_data):
     return np.convolve(gyr_magnitude, kernel, mode="same")
 
 
-def detect_repetition_peaks(segment_data):
+def detect_repetition_peaks(segment_data, selected_exercise_code=None):
     # Detecteaza varfurile importante ale miscarii
     motion_signal = calculate_motion_signal(segment_data)
 
     if len(motion_signal) < FS:
         return np.asarray([], dtype=int), motion_signal, MIN_PEAK_PROMINENCE
+
+    exercise_code = selected_exercise_code if selected_exercise_code in (6, 7, 8) else 6
+
+    peak_prominence_factor = PEAK_PROMINENCE_FACTOR_BY_EXERCISE.get(
+        exercise_code,
+        0.05,
+    )
+
+    min_peak_distance = MIN_PEAK_DISTANCE_BY_EXERCISE.get(
+        exercise_code,
+        int(0.30 * FS),
+    )
 
     percentile_95 = np.percentile(motion_signal, 95)
     percentile_20 = np.percentile(motion_signal, 20)
@@ -51,24 +86,39 @@ def detect_repetition_peaks(segment_data):
     signal_amplitude = percentile_95 - percentile_20
 
     prominence_threshold = max(
-        signal_amplitude * PEAK_PROMINENCE_FACTOR,
+        signal_amplitude * peak_prominence_factor,
         MIN_PEAK_PROMINENCE,
     )
 
     peaks, _ = find_peaks(
         motion_signal,
-        distance=MIN_PEAK_DISTANCE,
+        distance=min_peak_distance,
         prominence=prominence_threshold,
     )
 
     return peaks, motion_signal, prominence_threshold
 
 
-def segment_repetitions(segment_data):
+def segment_repetitions(segment_data, selected_exercise_code=None):
     # Segmenteaza o sesiune in repetari individuale
     segment_data = np.asarray(segment_data, dtype=float)
 
-    peaks, motion_signal, prominence = detect_repetition_peaks(segment_data)
+    exercise_code = selected_exercise_code if selected_exercise_code in (6, 7, 8) else 6
+
+    min_final_repetition_duration = MIN_FINAL_REPETITION_DURATION_BY_EXERCISE.get(
+        exercise_code,
+        int(1.50 * FS),
+    )
+
+    filter_overlap = FILTER_OVERLAP_BY_EXERCISE.get(
+        exercise_code,
+        False,
+    )
+
+    peaks, motion_signal, prominence = detect_repetition_peaks(
+        segment_data,
+        exercise_code,
+    )
 
     if len(peaks) < PEAKS_PER_REPETITION:
         detection_info = {
@@ -102,7 +152,7 @@ def segment_repetitions(segment_data):
         segment_length = end_sample - start_sample
         duration_seconds = segment_length / FS
 
-        if segment_length < MIN_FINAL_REPETITION_DURATION:
+        if segment_length < min_final_repetition_duration:
             rejected_segments.append({
                 "candidateRepetition": repetition_index + 1,
                 "startSample": start_sample,
@@ -114,7 +164,7 @@ def segment_repetitions(segment_data):
 
             continue
 
-        if start_sample < last_accepted_end:
+        if filter_overlap and start_sample < last_accepted_end:
             rejected_segments.append({
                 "candidateRepetition": repetition_index + 1,
                 "startSample": start_sample,
@@ -148,6 +198,7 @@ def segment_repetitions(segment_data):
         "raw_repetition_count": int(raw_repetition_count),
         "repetition_count": len(segments),
         "rejected_segments": rejected_segments,
+        "selected_exercise_for_segmentation": exercise_code,
     }
 
     return segments, segment_info, detection_info

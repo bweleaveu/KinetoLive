@@ -7,6 +7,7 @@ import {
   ChevronRight,
   Dumbbell,
   BicepsFlexed,
+  Gauge,
   LayoutDashboard,
   ListChecks,
   Moon,
@@ -47,6 +48,10 @@ const NAV = [
     icon: UsersRound,
   },
   {
+    to: "/calibration",
+    icon: Gauge,
+  },
+  {
     to: "/live-session",
     icon: Radio,
   },
@@ -66,6 +71,8 @@ const TEXT = {
     exercisesDescription: "Biblioteca de exercitii",
     patients: "Pacienti",
     patientsDescription: "Selectare pacient",
+    calibration: "Calibrare",
+    calibrationDescription: "Configurare senzor",
     liveSession: "Sesiune live",
     liveSessionDescription: "Monitorizare senzori",
     sessions: "Sesiuni",
@@ -80,8 +87,7 @@ const TEXT = {
     espTitle: "ESP32 · BNO055",
     espDescription: "Date inertiale live transmise prin WebSocket la 25 Hz.",
     mlTitle: "Analiza prin invatare automata",
-    mlDescription:
-      "Detectarea exercitiului, segmentarea repetarilor si clasificarea calitatii.",
+    mlDescription: "Detectarea exercitiului, segmentarea repetarilor si clasificarea calitatii.",
   },
   en: {
     appSubtitle: "Rehab monitoring",
@@ -91,6 +97,8 @@ const TEXT = {
     exercisesDescription: "Exercise library",
     patients: "Patients",
     patientsDescription: "Patient selection",
+    calibration: "Calibration",
+    calibrationDescription: "Sensor setup",
     liveSession: "Live Session",
     liveSessionDescription: "Sensor monitoring",
     sessions: "Sessions",
@@ -105,8 +113,7 @@ const TEXT = {
     espTitle: "ESP32 · BNO055",
     espDescription: "Live inertial data streamed through WebSocket at 25 Hz.",
     mlTitle: "Machine learning analysis",
-    mlDescription:
-      "Exercise detection, repetition segmentation and quality classification.",
+    mlDescription: "Exercise detection, repetition segmentation and quality classification.",
   },
 } as const;
 
@@ -178,6 +185,12 @@ export function AppLayout({ children }: { children?: ReactNode }) {
       icon: UsersRound,
     },
     {
+      to: "/calibration",
+      label: text.calibration,
+      description: text.calibrationDescription,
+      icon: Gauge,
+    },
+    {
       to: "/live-session",
       label: text.liveSession,
       description: text.liveSessionDescription,
@@ -202,10 +215,7 @@ export function AppLayout({ children }: { children?: ReactNode }) {
 
   useEffect(() => {
     // Salveaza starea sidebarului in localStorage
-    localStorage.setItem(
-      "kinetolive:sidebar-collapsed",
-      String(isSidebarCollapsed),
-    );
+    localStorage.setItem("kinetolive:sidebar-collapsed", String(isSidebarCollapsed));
   }, [isSidebarCollapsed]);
 
   const pathname = useRouterState({
@@ -230,6 +240,10 @@ export function AppLayout({ children }: { children?: ReactNode }) {
       label: text.patients,
       description: text.patientsDescription,
     },
+    "/calibration": {
+      label: text.calibration,
+      description: text.calibrationDescription,
+    },
     "/live-session": {
       label: text.liveSession,
       description: text.liveSessionDescription,
@@ -240,12 +254,10 @@ export function AppLayout({ children }: { children?: ReactNode }) {
     },
   } as const;
 
-  const activeRouteText =
-    routeTextMap[activeRoute?.to as keyof typeof routeTextMap];
+  const activeRouteText = routeTextMap[activeRoute?.to as keyof typeof routeTextMap];
 
   const pageTitle = activeRouteText?.label ?? "KinetoLive";
-  const pageDescription =
-    activeRouteText?.description ?? text.appSubtitle;
+  const pageDescription = activeRouteText?.description ?? text.appSubtitle;
 
   function isActiveRoute(to: string) {
     // Verifica daca ruta curenta este activa in sidebar
@@ -287,9 +299,7 @@ export function AppLayout({ children }: { children?: ReactNode }) {
             type="button"
             onClick={() => setIsSidebarCollapsed((currentValue) => !currentValue)}
             className={`mb-4 grid h-16 rounded-2xl border border-border bg-background/70 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground ${
-              isSidebarCollapsed
-                ? "w-16 grid-cols-[64px]"
-                : "w-full grid-cols-[64px_minmax(0,1fr)]"
+              isSidebarCollapsed ? "w-16 grid-cols-[64px]" : "w-full grid-cols-[64px_minmax(0,1fr)]"
             }`}
           >
             <div className="flex h-16 w-16 items-center justify-center">
@@ -343,9 +353,7 @@ export function AppLayout({ children }: { children?: ReactNode }) {
                   {!isSidebarCollapsed && (
                     <div className="flex min-w-0 flex-col justify-center overflow-hidden pl-3">
                       <div className="truncate font-semibold">{label}</div>
-                      <div className="truncate text-xs text-muted-foreground">
-                        {description}
-                      </div>
+                      <div className="truncate text-xs text-muted-foreground">{description}</div>
                     </div>
                   )}
                 </Link>
@@ -356,9 +364,7 @@ export function AppLayout({ children }: { children?: ReactNode }) {
           {/* Link Settings din sidebar */}
           <div
             className={`mt-4 grid h-16 rounded-2xl border border-border bg-background/70 text-sm text-muted-foreground transition-colors ${
-              isSidebarCollapsed
-                ? "w-16 grid-cols-[64px]"
-                : "w-full grid-cols-[64px_minmax(0,1fr)]"
+              isSidebarCollapsed ? "w-16 grid-cols-[64px]" : "w-full grid-cols-[64px_minmax(0,1fr)]"
             }`}
             title={isSidebarCollapsed ? text.settings : undefined}
           >
@@ -513,9 +519,7 @@ export function AppLayout({ children }: { children?: ReactNode }) {
             </div>
           </header>
 
-          <main className="flex-1 px-5 py-6 md:px-7">
-            {children ?? <Outlet />}
-          </main>
+          <main className="flex-1 px-5 py-6 md:px-7">{children ?? <Outlet />}</main>
         </div>
       </div>
     </div>
