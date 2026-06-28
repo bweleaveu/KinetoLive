@@ -15,19 +15,21 @@ PEAKS_PER_REPETITION = 2
 # Valorile sunt folosite doar pentru detectarea repetarilor, nu pentru antrenarea modelelor.
 SEGMENTATION_CONFIG_BY_EXERCISE = {
     6: {
-        "prominence_factor": 0.08,
-        "height_factor": 0.12,
-        "min_peak_distance_seconds": 0.30,
-        "active_threshold_factor": 0.18,
-        "active_margin_seconds": 0.60,
+        # E6 produce frecvent varfuri secundare pe rotatia mainii.
+        # Pragurile sunt putin mai stricte ca sa nu taie o repetare in doua.
+        "prominence_factor": 0.11,
+        "height_factor": 0.18,
+        "min_peak_distance_seconds": 0.38,
+        "active_threshold_factor": 0.20,
+        "active_margin_seconds": 0.55,
         "min_segment_seconds": 0.80,
     },
     7: {
-        "prominence_factor": 0.08,
-        "height_factor": 0.12,
-        "min_peak_distance_seconds": 0.32,
-        "active_threshold_factor": 0.18,
-        "active_margin_seconds": 0.60,
+        "prominence_factor": 0.10,
+        "height_factor": 0.16,
+        "min_peak_distance_seconds": 0.38,
+        "active_threshold_factor": 0.20,
+        "active_margin_seconds": 0.55,
         "min_segment_seconds": 0.90,
     },
     8: {

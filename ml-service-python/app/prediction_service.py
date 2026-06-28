@@ -15,7 +15,9 @@ MIN_ACTIVE_GYR_RATIO_FOR_VALID_MOVEMENT = 0.05
 MIN_ACTIVE_ACC_RATIO_FOR_VALID_MOVEMENT = 0.05
 
 AUTO_EXERCISE_CODE = 0
-CLASSIFICATION_CONTEXT_REPETITIONS = 1
+# Pentru clasificarea calitatii folosim repetarea izolata.
+# Fereastra cu vecini facea ca repetarile cu amplitudine mica sa fie contaminate de miscari normale/rapide.
+CLASSIFICATION_CONTEXT_REPETITIONS = 0
 
 
 def calculate_motion_metrics(signal_data):
@@ -88,7 +90,7 @@ def safe_mean_probability(probability_sum, count):
 
 
 def get_signal_energy(segment):
-    # Calculeaza energia accelerometrului si a giroscopului pentru debug
+    # Calculeaza energia si amplitudinea miscarii pentru debug si corectia calitatii
     segment = np.asarray(segment, dtype=float)
 
     if len(segment) == 0:
@@ -101,15 +103,312 @@ def get_signal_energy(segment):
     gyr_energy = float(np.mean(np.sum(gyr ** 2, axis=1)))
 
     acc_centered = acc - np.median(acc, axis=0)
-    gyr_magnitude = np.linalg.norm(gyr, axis=1)
     acc_dynamic = np.linalg.norm(acc_centered, axis=1)
 
+    gyr_axis_ranges = np.percentile(gyr, 95, axis=0) - np.percentile(gyr, 5, axis=0)
+    acc_axis_ranges = np.percentile(acc_centered, 95, axis=0) - np.percentile(acc_centered, 5, axis=0)
+    gyr_magnitude = np.linalg.norm(gyr, axis=1)
+
+    # Pentru amplitudine mica conteaza foarte mult axa dominanta, nu doar norma vectoriala.
+    # Daca pacientul roteste mana pe axa X, max(gyr_axis_ranges) surprinde mai bine miscarea.
+    dominant_gyr_range = float(np.max(np.abs(gyr_axis_ranges)))
+    dominant_acc_range = float(np.max(np.abs(acc_axis_ranges)))
+    gyr_magnitude_range = float(
+        np.percentile(gyr_magnitude, 95) - np.percentile(gyr_magnitude, 5)
+    )
+    acc_dynamic_range = float(
+        np.percentile(acc_dynamic, 95) - np.percentile(acc_dynamic, 5)
+    )
+
     motion_amplitude = float(
-        (np.percentile(gyr_magnitude, 95) - np.percentile(gyr_magnitude, 5))
-        + 0.25 * (np.percentile(acc_dynamic, 95) - np.percentile(acc_dynamic, 5))
+        0.55 * dominant_gyr_range
+        + 0.25 * gyr_magnitude_range
+        + 0.15 * dominant_acc_range
+        + 0.05 * acc_dynamic_range
     )
 
     return motion_amplitude, acc_energy, gyr_energy
+
+
+
+def get_largest_gap_threshold(values, original_indices):
+    # Gaseste un prag intre doua grupuri folosind cel mai mare salt din valori sortate
+    values = np.asarray(values, dtype=float)
+    original_indices = np.asarray(original_indices, dtype=int)
+
+    if len(values) < 3:
+        return None
+
+    finite_mask = np.isfinite(values)
+    values = values[finite_mask]
+    original_indices = original_indices[finite_mask]
+
+    if len(values) < 3:
+        return None
+
+    order = np.argsort(values)
+    sorted_values = values[order]
+    sorted_indices = original_indices[order]
+    gaps = np.diff(sorted_values)
+
+    if len(gaps) == 0:
+        return None
+
+    gap_index = int(np.argmax(gaps))
+    largest_gap = float(gaps[gap_index])
+    value_range = float(sorted_values[-1] - sorted_values[0])
+
+    if value_range < 1e-8:
+        return None
+
+    low_values = sorted_values[: gap_index + 1]
+    high_values = sorted_values[gap_index + 1 :]
+
+    if len(low_values) == 0 or len(high_values) == 0:
+        return None
+
+    low_mean = float(np.mean(low_values))
+    high_mean = float(np.mean(high_values))
+
+    if high_mean < 1e-8:
+        return None
+
+    relative_gap = largest_gap / value_range
+    low_high_ratio = low_mean / high_mean
+
+    # Prag mai permisiv: in live amplitudinea mica poate fi apropiata de normal,
+    # mai ales cand senzorul nu este prins identic ca in dataset.
+    if relative_gap < 0.12 or low_high_ratio > 0.88:
+        return None
+
+    threshold = float((sorted_values[gap_index] + sorted_values[gap_index + 1]) / 2.0)
+
+    return {
+        "threshold": threshold,
+        "relativeGap": float(relative_gap),
+        "lowHighRatio": float(low_high_ratio),
+        "lowIndices": [int(index) for index in sorted_indices[: gap_index + 1]],
+        "highIndices": [int(index) for index in sorted_indices[gap_index + 1 :]],
+    }
+
+
+def calculate_quality_sum_from_predictions(repetition_predictions):
+    # Recalculeaza agregarea calitatii dupa corectiile pe sesiune
+    quality_probability_sum = {1: 0.0, 2: 0.0, 3: 0.0}
+
+    for repetition in repetition_predictions:
+        quality_code = int(repetition.predictedQualityCode)
+
+        if quality_code in quality_probability_sum:
+            quality_probability_sum[quality_code] += 1.0
+
+    return quality_probability_sum
+
+
+def calculate_segmentation_consistency(segment_info):
+    # Calculeaza cat de plauzibila este segmentarea pentru modul automat
+    if not segment_info:
+        return {
+            "durationCv": 1.0,
+            "shortRatio": 1.0,
+            "medianSamples": 0.0,
+        }
+
+    lengths = np.asarray(
+        [float(item.get("sampleCount", 0)) for item in segment_info],
+        dtype=float,
+    )
+    lengths = lengths[np.isfinite(lengths) & (lengths > 0)]
+
+    if len(lengths) == 0:
+        return {
+            "durationCv": 1.0,
+            "shortRatio": 1.0,
+            "medianSamples": 0.0,
+        }
+
+    mean_length = float(np.mean(lengths))
+    median_length = float(np.median(lengths))
+
+    if mean_length < 1e-8 or median_length < 1e-8:
+        duration_cv = 1.0
+    else:
+        duration_cv = float(np.std(lengths) / mean_length)
+
+    short_ratio = float(np.mean(lengths < 0.55 * median_length))
+
+    return {
+        "durationCv": duration_cv,
+        "shortRatio": short_ratio,
+        "medianSamples": median_length,
+    }
+
+
+def apply_session_quality_correction(repetition_predictions, exercise_code):
+    # Corecteaza calitatea pe baza duratei si amplitudinii relative din aceeasi sesiune
+    if exercise_code not in VALID_EXERCISE_CODES or len(repetition_predictions) < 5:
+        return repetition_predictions, {
+            "enabled": False,
+            "reason": "not_enough_repetitions_or_invalid_exercise",
+        }
+
+    durations = np.asarray(
+        [float(repetition.sampleCount) for repetition in repetition_predictions],
+        dtype=float,
+    )
+    amplitudes = np.asarray(
+        [float(repetition.motionAmplitude or 0.0) for repetition in repetition_predictions],
+        dtype=float,
+    )
+
+    if np.any(~np.isfinite(durations)) or np.any(durations <= 0):
+        return repetition_predictions, {
+            "enabled": False,
+            "reason": "invalid_durations",
+        }
+
+    nonzero_amplitude_mask = np.isfinite(amplitudes) & (amplitudes > 1e-8)
+
+    if np.sum(nonzero_amplitude_mask) < max(3, len(amplitudes) // 2):
+        return repetition_predictions, {
+            "enabled": False,
+            "reason": "invalid_amplitudes",
+        }
+
+    duration_median = float(np.median(durations))
+    long_duration_reference = float(np.median(durations[durations >= duration_median]))
+
+    if long_duration_reference <= 0:
+        return repetition_predictions, {
+            "enabled": False,
+            "reason": "invalid_duration_reference",
+        }
+
+    rapid_factor_by_exercise = {
+        6: 0.72,
+        7: 0.72,
+        8: 0.68,
+    }
+    rapid_factor = rapid_factor_by_exercise.get(int(exercise_code), 0.72)
+    rapid_threshold = long_duration_reference * rapid_factor
+    rapid_mask = durations <= rapid_threshold
+    rapid_count = int(np.sum(rapid_mask))
+
+    rapid_is_separated = False
+
+    if 1 <= rapid_count <= max(1, len(durations) - 2):
+        rapid_durations = durations[rapid_mask]
+        nonrapid_durations = durations[~rapid_mask]
+
+        if len(nonrapid_durations) > 0:
+            rapid_is_separated = bool(
+                np.median(rapid_durations) <= 0.82 * np.median(nonrapid_durations)
+            )
+
+    rapid_mask = rapid_mask & rapid_is_separated
+
+    candidate_low_amplitude_indices = np.where(~rapid_mask)[0]
+    low_amplitude_mask = np.zeros(len(repetition_predictions), dtype=bool)
+    amplitude_split = None
+
+    if len(candidate_low_amplitude_indices) >= 3:
+        amplitude_split = get_largest_gap_threshold(
+            amplitudes[candidate_low_amplitude_indices],
+            candidate_low_amplitude_indices,
+        )
+
+        if amplitude_split is not None:
+            low_amplitude_mask = (~rapid_mask) & (
+                amplitudes <= amplitude_split["threshold"]
+            )
+
+            low_count = int(np.sum(low_amplitude_mask))
+
+            if low_count < 1 or low_count >= len(repetition_predictions):
+                low_amplitude_mask = np.zeros(len(repetition_predictions), dtype=bool)
+                amplitude_split = None
+
+    # Caz frecvent in testele live: pacientul executa normal -> rapid -> amplitudine mica.
+    # Daca ultima treime are amplitudine clar mai mica decat prima parte, o marcam ca amplitudine mica.
+    if len(repetition_predictions) >= 7:
+        last_third_start = int(np.floor(len(repetition_predictions) * 2 / 3))
+        first_part_end = max(1, int(np.floor(len(repetition_predictions) / 2)))
+        last_third_indices = np.arange(last_third_start, len(repetition_predictions))
+        first_part_indices = np.arange(0, first_part_end)
+
+        last_valid = last_third_indices[~rapid_mask[last_third_indices]]
+        first_valid = first_part_indices[~rapid_mask[first_part_indices]]
+
+        if len(last_valid) >= 2 and len(first_valid) >= 2:
+            first_reference = float(np.median(amplitudes[first_valid]))
+            last_reference = float(np.median(amplitudes[last_valid]))
+
+            if first_reference > 1e-8 and last_reference <= 0.78 * first_reference:
+                low_amplitude_mask[last_valid] = True
+                amplitude_split = amplitude_split or {
+                    "threshold": float(0.78 * first_reference),
+                    "relativeGap": None,
+                    "lowHighRatio": float(last_reference / first_reference),
+                    "lowIndices": [int(index) for index in last_valid],
+                    "highIndices": [int(index) for index in first_valid],
+                    "rule": "ordered_last_third_amplitude_drop",
+                }
+
+    correction_enabled = bool(np.any(rapid_mask) or np.any(low_amplitude_mask))
+
+    correction_debug = {
+        "enabled": correction_enabled,
+        "exerciseCode": int(exercise_code),
+        "durationMedianSamples": float(duration_median),
+        "longDurationReferenceSamples": float(long_duration_reference),
+        "rapidThresholdSamples": float(rapid_threshold),
+        "rapidMask": [bool(value) for value in rapid_mask],
+        "lowAmplitudeMask": [bool(value) for value in low_amplitude_mask],
+        "durationSamples": [float(value) for value in durations],
+        "motionAmplitudes": [float(value) for value in amplitudes],
+        "amplitudeThreshold": (
+            float(amplitude_split["threshold"])
+            if amplitude_split is not None
+            else None
+        ),
+        "amplitudeSplit": amplitude_split,
+    }
+
+    if not correction_enabled:
+        correction_debug["reason"] = "no_clear_session_metric_separation"
+        return repetition_predictions, correction_debug
+
+    corrected_predictions = []
+
+    for index, repetition in enumerate(repetition_predictions):
+        original_code = int(repetition.predictedQualityCode)
+
+        if rapid_mask[index]:
+            corrected_code = 2
+            correction_confidence = 78.0
+        elif low_amplitude_mask[index]:
+            corrected_code = 3
+            correction_confidence = 76.0
+        elif np.any(rapid_mask) and np.any(low_amplitude_mask):
+            corrected_code = 1
+            correction_confidence = 74.0
+        else:
+            corrected_code = original_code
+            correction_confidence = float(repetition.qualityConfidence)
+
+        if corrected_code != original_code:
+            repetition.predictedQualityCode = int(corrected_code)
+            repetition.predictedQualityName = QUALITY_NAMES.get(
+                int(corrected_code),
+                str(corrected_code),
+            )
+            repetition.qualityConfidence = float(
+                max(float(repetition.qualityConfidence), correction_confidence)
+            )
+
+        corrected_predictions.append(repetition)
+
+    return corrected_predictions, correction_debug
 
 
 class PredictionService:
@@ -307,6 +606,14 @@ class PredictionService:
             quality_model_exercise_code=quality_model_exercise_code,
         )
 
+        repetition_predictions, quality_post_processing = apply_session_quality_correction(
+            repetition_predictions,
+            quality_model_exercise_code,
+        )
+        quality_probability_sum = calculate_quality_sum_from_predictions(
+            repetition_predictions,
+        )
+
         if not repetition_predictions:
             return self.build_empty_response(
                 payload=payload,
@@ -345,6 +652,7 @@ class PredictionService:
                 str(key): float(value * 100)
                 for key, value in quality_probability_means.items()
             },
+            "qualityPostProcessing": quality_post_processing,
         }
 
         return MlAnalysisResponseDto(
@@ -431,10 +739,21 @@ class PredictionService:
             best_probability = max(probability_means.values()) if probability_means else 0.0
             repetition_count = len(segments)
             rejected_count = len(detection_info.get("rejectedSegments", []))
+            consistency = calculate_segmentation_consistency(segment_info)
 
-            count_bonus = min(repetition_count, 12) * 0.01
             rejection_penalty = rejected_count * 0.02
-            score = float(0.70 * own_probability + 0.30 * best_probability + count_bonus - rejection_penalty)
+            short_segment_penalty = consistency["shortRatio"] * 0.10
+            duration_variation_penalty = min(consistency["durationCv"], 1.0) * 0.06
+
+            # In modul automat alegem segmentarea cea mai coerenta, nu pe cea care produce
+            # cat mai multe repetari. Exercitiul final este ales ulterior dupa modelul de identificare.
+            score = float(
+                0.85 * best_probability
+                + 0.15 * own_probability
+                - rejection_penalty
+                - short_segment_penalty
+                - duration_variation_penalty
+            )
 
             candidates.append({
                 "score": score,
@@ -445,6 +764,9 @@ class PredictionService:
                     "automaticCandidateScore": score,
                     "automaticCandidateOwnProbability": float(own_probability * 100),
                     "automaticCandidateBestProbability": float(best_probability * 100),
+                    "automaticCandidateDurationCv": float(consistency["durationCv"]),
+                    "automaticCandidateShortRatio": float(consistency["shortRatio"]),
+                    "automaticCandidateMedianSamples": float(consistency["medianSamples"]),
                 },
                 "segmentation_exercise_code": exercise_code,
             })
@@ -459,6 +781,8 @@ class PredictionService:
                     "score": float(candidate["score"]),
                     "repetitionCount": int(len(candidate["segments"])),
                     "peakCount": int(candidate["detection_info"].get("peakCount", 0)),
+                    "durationCv": float(candidate["detection_info"].get("automaticCandidateDurationCv", 0.0)),
+                    "shortRatio": float(candidate["detection_info"].get("automaticCandidateShortRatio", 0.0)),
                 }
                 for candidate in candidates
             ],
