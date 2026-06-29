@@ -870,46 +870,50 @@ function LiveSessionPage() {
         />
 
         <div className="min-w-0 space-y-3">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
-            <StatCard
-              label={text.currentSession}
-              value={sessionId ? `#${sessionId}` : text.notStarted}
-              hint={text.readyForLiveMonitoring}
-              icon={Radio}
-              tone="primary"
-            />
+          <div className="space-y-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              <StatCard
+                label={text.currentSession}
+                value={sessionId ? `#${sessionId}` : text.notStarted}
+                hint={text.readyForLiveMonitoring}
+                icon={Radio}
+                tone="primary"
+              />
 
-            <StatCard
-              label={text.selectedExercise}
-              value={selectedExerciseDisplayName}
-              hint={intended === 0 ? text.automaticDetection : selectedExerciseName}
-              icon={Dumbbell}
-              tone="cyan"
-            />
+              <StatCard
+                label={text.selectedExercise}
+                value={selectedExerciseDisplayName}
+                hint={intended === 0 ? text.automaticDetection : selectedExerciseName}
+                icon={Dumbbell}
+                tone="cyan"
+              />
 
-            <StatCard
-              label={text.selectedPatient}
-              value={selectedPatient?.fullName ?? text.noPatient}
-              hint={selectedPatient ? `ID ${selectedPatient.id}` : text.noSelectedPatient}
-              icon={UserRound}
-              tone="mint"
-            />
+              <StatCard
+                label={text.selectedPatient}
+                value={selectedPatient?.fullName ?? text.noPatient}
+                hint={selectedPatient ? `ID ${selectedPatient.id}` : text.noSelectedPatient}
+                icon={UserRound}
+                tone="mint"
+              />
+            </div>
 
-            <StatCard
-              label={text.connectionStatus}
-              value={connectionStatusLabel}
-              hint={text.liveDataStream}
-              icon={Wifi}
-              tone={ws.status === "open" ? "mint" : "amber"}
-            />
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <StatCard
+                label={text.connectionStatus}
+                value={connectionStatusLabel}
+                hint={text.liveDataStream}
+                icon={Wifi}
+                tone={ws.status === "open" ? "mint" : "amber"}
+              />
 
-            <StatCard
-              label={text.liveSamples}
-              value={ws.count}
-              hint={text.bufferedBySessionId}
-              icon={Activity}
-              tone="violet"
-            />
+              <StatCard
+                label={text.liveSamples}
+                value={ws.count}
+                hint={text.bufferedBySessionId}
+                icon={Activity}
+                tone="violet"
+              />
+            </div>
           </div>
 
           <SectionCard
