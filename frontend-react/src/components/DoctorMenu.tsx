@@ -1,9 +1,9 @@
-// Meniu doctor cu nume, email si buton de deconectare
+// Meniu doctor cu nume, email, profil si buton de deconectare
 import { useEffect, useRef, useState } from "react";
 import { LogOut, Settings, UserRound } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useAppLanguage } from "@/hooks/useAppLanguage";
-// Navigare dupa deconectare
+// Navigare catre profil/setari si dupa deconectare
 import { useNavigate } from "@tanstack/react-router";
 
 const TEXT = {
@@ -75,7 +75,10 @@ export function DoctorMenu() {
           </div>
           <button
             type="button"
-            onClick={() => setOpen(false)}
+            onClick={() => {
+              setOpen(false);
+              navigate({ to: "/settings" });
+            }}
             className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-foreground transition hover:bg-muted"
           >
             <Settings className="h-4 w-4" />

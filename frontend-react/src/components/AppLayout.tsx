@@ -76,6 +76,8 @@ const TEXT = {
     liveSessionDescription: "Monitorizare senzori",
     sessions: "Sesiuni",
     sessionsDescription: "Rezultate salvate",
+    profileSettings: "Profil și setări",
+    profileSettingsDescription: "Preferinte cont doctor",
     collapse: "Restrange",
     dark: "Intunecat",
     light: "Luminos",
@@ -100,6 +102,8 @@ const TEXT = {
     liveSessionDescription: "Sensor monitoring",
     sessions: "Sessions",
     sessionsDescription: "Saved results",
+    profileSettings: "Profile & settings",
+    profileSettingsDescription: "Doctor account preferences",
     collapse: "Collapse",
     dark: "Dark",
     light: "Light",
@@ -247,9 +251,19 @@ export function AppLayout({ children }: { children?: ReactNode }) {
       label: text.sessions,
       description: text.sessionsDescription,
     },
+    "/settings": {
+      label: text.profileSettings,
+      description: text.profileSettingsDescription,
+    },
   } as const;
 
-  const activeRouteText = routeTextMap[activeRoute?.to as keyof typeof routeTextMap];
+  const activeRouteKey = pathname.startsWith("/settings")
+    ? "/settings"
+    : activeRoute?.to;
+
+  const activeRouteText = activeRouteKey
+    ? routeTextMap[activeRouteKey as keyof typeof routeTextMap]
+    : undefined;
 
   const pageTitle = activeRouteText?.label ?? "KinetoLive";
   const pageDescription = activeRouteText?.description ?? text.appSubtitle;
