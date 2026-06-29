@@ -12,7 +12,6 @@ import {
   ListChecks,
   Moon,
   Radio,
-  Settings,
   Sun,
   UsersRound,
   // Iconita pentru selectarea limbii
@@ -77,8 +76,6 @@ const TEXT = {
     liveSessionDescription: "Monitorizare senzori",
     sessions: "Sesiuni",
     sessionsDescription: "Rezultate salvate",
-    settings: "Setari",
-    settingsDescription: "Disponibil ulterior",
     collapse: "Restrange",
     dark: "Intunecat",
     light: "Luminos",
@@ -103,8 +100,6 @@ const TEXT = {
     liveSessionDescription: "Sensor monitoring",
     sessions: "Sessions",
     sessionsDescription: "Saved results",
-    settings: "Settings",
-    settingsDescription: "Coming later",
     collapse: "Collapse",
     dark: "Dark",
     light: "Light",
@@ -360,33 +355,6 @@ export function AppLayout({ children }: { children?: ReactNode }) {
               );
             })}
           </nav>
-
-          {/* Link Settings din sidebar */}
-          <div
-            className={`mt-4 grid h-16 rounded-2xl border border-border bg-background/70 text-sm text-muted-foreground transition-colors ${
-              isSidebarCollapsed ? "w-16 grid-cols-[64px]" : "w-full grid-cols-[64px_minmax(0,1fr)]"
-            }`}
-            title={isSidebarCollapsed ? text.settings : undefined}
-          >
-            <div className="flex h-16 w-16 items-center justify-center">
-              <div className="grid h-9 w-9 place-items-center rounded-xl bg-muted text-muted-foreground">
-                <Settings className="h-4 w-4" />
-              </div>
-            </div>
-
-            {!isSidebarCollapsed && (
-              <div className="flex min-w-0 flex-col justify-center overflow-hidden pl-3">
-                <div className="truncate font-semibold text-foreground">
-                  {/*Text Settings tradus*/}
-                  {text.settings}
-                </div>
-                <div className="truncate text-xs text-muted-foreground">
-                  {/*Text descriere Settings tradus*/}
-                  {text.settingsDescription}
-                </div>
-              </div>
-            )}
-          </div>
 
           {/* Afiseaza cardurile informative doar cand sidebarul este extins */}
           {!isSidebarCollapsed && (
