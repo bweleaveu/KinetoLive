@@ -78,7 +78,10 @@ def test_segmentation(payload: MlAnalysisPayloadDto):
     # Testeaza segmentarea repetarilor pe baza payload-ului primit
     signal_data = convert_payload_to_signal_matrix(payload)
 
-    segments, segment_info, detection_info = segment_repetitions(signal_data)
+    segments, segment_info, detection_info = segment_repetitions(
+        signal_data,
+        payload.selectedExerciseCode,
+    )
 
     return {
         "sessionId": payload.sessionId,

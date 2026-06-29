@@ -33,6 +33,16 @@ public class TherapySessionController {
         return therapySessionService.completeSession(sessionId, request);
     }
 
+
+    @PatchMapping("/{sessionId}/intended-exercise")
+    public TherapySessionResponseDto updateIntendedExercise(
+            Authentication authentication,
+            @PathVariable Long sessionId,
+            @Valid @RequestBody UpdateIntendedExerciseRequest request
+    ) {
+        return therapySessionService.updateIntendedExercise(authentication.getName(), sessionId, request);
+    }
+
     @GetMapping("/{sessionId}")
     public TherapySessionResponseDto getSessionById(
             Authentication authentication,

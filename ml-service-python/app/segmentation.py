@@ -5,200 +5,769 @@ from scipy.signal import find_peaks
 
 FS = 25
 
-SMOOTHING_WINDOW = 5
+VALID_EXERCISE_CODES = (6, 7, 8)
+
 MIN_PEAK_PROMINENCE = 1e-8
-
 PEAKS_PER_REPETITION = 2
-REPETITION_SEGMENT_MARGIN = int(0.80 * FS)
+AXIS_NAMES = ("x", "y", "z")
 
-# Parametri diferiti pentru fiecare exercitiu
-# E6 trebuie sa fie mai permisiv, altfel pierde repetari reale.
-PEAK_PROMINENCE_FACTOR_BY_EXERCISE = {
-    6: 0.04,
-    7: 0.06,
-    8: 0.10,
+# Segmentarea foloseste un semnal de miscare intentionata, nu norma bruta a giroscopului.
+# Astfel, tremuratul rapid pe axe secundare nu mai creeaza varfuri false.
+SEGMENTATION_CONFIG_BY_EXERCISE = {
+    6: {
+        # E6 poate pierde repetarile rapide sau cele cu amplitudine mica daca pragurile sunt prea stricte.
+        # Folosim detectie mai permisiva pe semnalul filtrat, apoi pastram filtrul global de tremor.
+        "prominence_factor": 0.10,
+        "height_factor": 0.14,
+        "min_peak_distance_seconds": 0.34,
+        "active_threshold_factor": 0.18,
+        "active_margin_seconds": 0.60,
+        "min_segment_seconds": 0.48,
+        "intentional_window_seconds": 0.30,
+        "axis_selection_ratio": 0.36,
+        "min_coherent_amplitude_ratio": 0.07,
+        "tremor_rejection_ratio": 0.68,
+        "enable_relaxed_peak_rescue": True,
+        "relaxed_prominence_multiplier": 0.58,
+        "relaxed_height_factor": 0.09,
+        "relaxed_min_peak_distance_seconds": 0.28,
+    },
+    7: {
+        "prominence_factor": 0.13,
+        "height_factor": 0.20,
+        "min_peak_distance_seconds": 0.44,
+        "active_threshold_factor": 0.22,
+        "active_margin_seconds": 0.50,
+        "min_segment_seconds": 0.82,
+        "intentional_window_seconds": 0.38,
+        "axis_selection_ratio": 0.45,
+        "min_coherent_amplitude_ratio": 0.10,
+        "tremor_rejection_ratio": 0.62,
+    },
+    8: {
+        # E8 are repetari mai apropiate si amplitudinile mici pot produce varfuri mai joase.
+        # Folosim praguri mai permisive pe semnalul filtrat, nu pe semnalul brut.
+        "prominence_factor": 0.09,
+        "height_factor": 0.12,
+        "min_peak_distance_seconds": 0.32,
+        "active_threshold_factor": 0.18,
+        "active_margin_seconds": 0.58,
+        "min_segment_seconds": 0.38,
+        "intentional_window_seconds": 0.26,
+        "axis_selection_ratio": 0.34,
+        "min_coherent_amplitude_ratio": 0.06,
+        "tremor_rejection_ratio": 0.70,
+        "enable_relaxed_peak_rescue": True,
+        "relaxed_prominence_multiplier": 0.55,
+        "relaxed_height_factor": 0.08,
+        "relaxed_min_peak_distance_seconds": 0.24,
+    },
 }
 
-MIN_PEAK_DISTANCE_BY_EXERCISE = {
-    6: int(0.22 * FS),
-    7: int(0.26 * FS),
-    8: int(0.40 * FS),
-}
-
-MIN_FINAL_REPETITION_DURATION_BY_EXERCISE = {
-    6: int(1.20 * FS),
-    7: int(1.60 * FS),
-    8: int(0.80 * FS),
-}
-
-FILTER_OVERLAP_BY_EXERCISE = {
-    6: False,
-    7: False,
-    8: False,
+DEFAULT_SEGMENTATION_CONFIG = {
+    "prominence_factor": 0.13,
+    "height_factor": 0.18,
+    "min_peak_distance_seconds": 0.42,
+    "active_threshold_factor": 0.22,
+    "active_margin_seconds": 0.50,
+    "min_segment_seconds": 0.75,
+    "intentional_window_seconds": 0.36,
+    "axis_selection_ratio": 0.42,
+    "min_coherent_amplitude_ratio": 0.10,
+    "tremor_rejection_ratio": 0.62,
 }
 
 
-def calculate_motion_signal(segment_data):
-    # Calculeaza semnalul de miscare pe baza magnitudinii giroscopului
-    segment_data = np.asarray(segment_data, dtype=float)
+def get_exercise_code(selected_exercise_code):
+    # Normalizeaza codul exercitiului pentru segmentare
+    try:
+        exercise_code = int(selected_exercise_code)
+    except (TypeError, ValueError):
+        return 6
 
-    if segment_data.ndim != 2 or segment_data.shape[1] != 6:
-        return np.asarray([], dtype=float)
+    if exercise_code in VALID_EXERCISE_CODES:
+        return exercise_code
 
-    if len(segment_data) == 0:
-        return np.asarray([], dtype=float)
+    return 6
 
-    gyr = segment_data[:, 3:6]
-    gyr_magnitude = np.linalg.norm(gyr, axis=1)
 
-    window_size = min(SMOOTHING_WINDOW, len(gyr_magnitude))
+def get_segmentation_config(selected_exercise_code):
+    # Returneaza configuratia de segmentare pentru exercitiul curent
+    exercise_code = get_exercise_code(selected_exercise_code)
+    config = dict(DEFAULT_SEGMENTATION_CONFIG)
+    config.update(SEGMENTATION_CONFIG_BY_EXERCISE.get(exercise_code, {}))
+    config["exercise_code"] = exercise_code
+    config["min_peak_distance_samples"] = max(
+        1,
+        int(round(config["min_peak_distance_seconds"] * FS)),
+    )
+    config["active_margin_samples"] = max(
+        0,
+        int(round(config["active_margin_seconds"] * FS)),
+    )
+    config["min_segment_samples"] = max(
+        2,
+        int(round(config["min_segment_seconds"] * FS)),
+    )
+    config["intentional_window_samples"] = make_odd_window(
+        max(3, int(round(config["intentional_window_seconds"] * FS))),
+    )
+
+    if config.get("enable_relaxed_peak_rescue"):
+        config["relaxed_min_peak_distance_samples"] = max(
+            1,
+            int(round(config.get("relaxed_min_peak_distance_seconds", 0.28) * FS)),
+        )
+    else:
+        config["relaxed_min_peak_distance_samples"] = config["min_peak_distance_samples"]
+
+    return config
+
+
+def make_odd_window(value):
+    # Pastreaza fereastra impara pentru netezire simetrica
+    value = int(value)
+
+    if value % 2 == 0:
+        value += 1
+
+    return max(3, value)
+
+
+def smooth_signal(values, window_size=5):
+    # Netezeste un vector folosind media mobila cu padding la margini
+    values = np.asarray(values, dtype=float)
+
+    if len(values) == 0:
+        return values
+
+    window_size = min(int(window_size), len(values))
 
     if window_size < 2:
-        return gyr_magnitude
+        return values
 
+    if window_size % 2 == 0:
+        window_size -= 1
+
+    if window_size < 2:
+        return values
+
+    pad = window_size // 2
+    padded = np.pad(values, pad_width=pad, mode="edge")
     kernel = np.ones(window_size, dtype=float) / window_size
 
-    return np.convolve(gyr_magnitude, kernel, mode="same")
+    return np.convolve(padded, kernel, mode="valid")
 
 
-def detect_repetition_peaks(segment_data, selected_exercise_code=None):
-    # Detecteaza varfurile importante ale miscarii
-    motion_signal = calculate_motion_signal(segment_data)
+def smooth_axis_matrix(values, window_size):
+    # Netezeste fiecare axa separat
+    values = np.asarray(values, dtype=float)
 
-    if len(motion_signal) < FS:
-        return np.asarray([], dtype=int), motion_signal, MIN_PEAK_PROMINENCE
+    if values.ndim != 2 or values.shape[1] == 0:
+        return values
 
-    exercise_code = selected_exercise_code if selected_exercise_code in (6, 7, 8) else 6
+    smoothed = np.zeros_like(values, dtype=float)
 
-    peak_prominence_factor = PEAK_PROMINENCE_FACTOR_BY_EXERCISE.get(
-        exercise_code,
-        0.05,
+    for axis_index in range(values.shape[1]):
+        smoothed[:, axis_index] = smooth_signal(values[:, axis_index], window_size)
+
+    return smoothed
+
+
+def robust_range(values, low_percentile=5, high_percentile=95):
+    # Calculeaza amplitudinea robusta a unui vector
+    values = np.asarray(values, dtype=float)
+
+    if len(values) == 0:
+        return 0.0
+
+    return float(
+        np.percentile(values, high_percentile) - np.percentile(values, low_percentile)
     )
 
-    min_peak_distance = MIN_PEAK_DISTANCE_BY_EXERCISE.get(
-        exercise_code,
-        int(0.30 * FS),
+
+def robust_normalize_positive(values):
+    # Normalizeaza un semnal pozitiv pentru combinarea axelor
+    values = np.asarray(values, dtype=float)
+
+    if len(values) == 0:
+        return values
+
+    baseline = np.percentile(values, 10)
+    amplitude = np.percentile(values, 95) - baseline
+
+    if amplitude < 1e-8:
+        amplitude = np.std(values)
+
+    if amplitude < 1e-8:
+        return np.zeros_like(values, dtype=float)
+
+    normalized = (values - baseline) / amplitude
+
+    return np.clip(normalized, 0.0, None)
+
+
+def get_axis_ranges(values):
+    # Returneaza range-ul robust pentru fiecare axa
+    values = np.asarray(values, dtype=float)
+
+    if values.ndim != 2 or values.shape[1] == 0:
+        return np.asarray([], dtype=float)
+
+    return np.asarray(
+        [robust_range(values[:, axis_index]) for axis_index in range(values.shape[1])],
+        dtype=float,
     )
+
+
+def calculate_axis_weights(low_frequency_axes, residual_axes, axis_selection_ratio):
+    # Alege axele dominante ale miscarii intentionate si reduce axele dominate de tremor
+    low_ranges = get_axis_ranges(low_frequency_axes)
+    residual_ranges = get_axis_ranges(residual_axes)
+
+    if len(low_ranges) == 0:
+        return np.asarray([], dtype=float), low_ranges, residual_ranges, []
+
+    max_low_range = float(np.max(low_ranges))
+
+    if max_low_range < 1e-8:
+        weights = np.zeros_like(low_ranges, dtype=float)
+        weights[int(np.argmax(low_ranges))] = 1.0
+        return weights, low_ranges, residual_ranges, [int(np.argmax(low_ranges))]
+
+    selected_mask = low_ranges >= max_low_range * axis_selection_ratio
+
+    if not np.any(selected_mask):
+        selected_mask[int(np.argmax(low_ranges))] = True
+
+    tremor_ratio = residual_ranges / (low_ranges + residual_ranges + 1e-8)
+    axis_quality = 1.0 - np.clip(tremor_ratio, 0.0, 0.85)
+    raw_weights = low_ranges * axis_quality * selected_mask.astype(float)
+
+    if float(np.sum(raw_weights)) < 1e-8:
+        raw_weights = low_ranges * selected_mask.astype(float)
+
+    if float(np.sum(raw_weights)) < 1e-8:
+        raw_weights = np.zeros_like(low_ranges, dtype=float)
+        raw_weights[int(np.argmax(low_ranges))] = 1.0
+
+    weights = raw_weights / np.sum(raw_weights)
+    selected_axes = [int(index) for index, is_selected in enumerate(selected_mask) if is_selected]
+
+    return weights, low_ranges, residual_ranges, selected_axes
+
+
+def get_weighted_axis_activity(low_frequency_axes, weights):
+    # Construieste activitatea pe axele dominante
+    low_frequency_axes = np.asarray(low_frequency_axes, dtype=float)
+    weights = np.asarray(weights, dtype=float)
+
+    if low_frequency_axes.ndim != 2 or low_frequency_axes.shape[1] == 0:
+        return np.asarray([], dtype=float)
+
+    if len(weights) != low_frequency_axes.shape[1] or np.sum(weights) < 1e-8:
+        weights = np.ones(low_frequency_axes.shape[1], dtype=float)
+        weights = weights / np.sum(weights)
+
+    return np.sum(np.abs(low_frequency_axes) * weights.reshape(1, -1), axis=1)
+
+
+def calculate_intentional_motion_details(segment_data, selected_exercise_code=None):
+    # Calculeaza semnalul de miscare intentionata si metricele de tremor
+    segment_data = np.asarray(segment_data, dtype=float)
+    config = get_segmentation_config(selected_exercise_code)
+
+    if segment_data.ndim != 2 or segment_data.shape[1] != 6 or len(segment_data) == 0:
+        return {
+            "motionSignal": np.asarray([], dtype=float),
+            "config": config,
+            "debug": {
+                "dominantGyrAxes": [],
+                "dominantAccAxes": [],
+                "gyrTremorRatio": 0.0,
+                "accTremorRatio": 0.0,
+                "dominantGyrLowRange": 0.0,
+                "dominantAccLowRange": 0.0,
+                "intentionalWindowSamples": int(config["intentional_window_samples"]),
+            },
+        }
+
+    acc = segment_data[:, 0:3]
+    gyr = segment_data[:, 3:6]
+
+    acc_centered = acc - np.median(acc, axis=0)
+    gyr_centered = gyr - np.median(gyr, axis=0)
+
+    window_size = config["intentional_window_samples"]
+
+    low_acc = smooth_axis_matrix(acc_centered, window_size)
+    low_gyr = smooth_axis_matrix(gyr_centered, window_size)
+
+    residual_acc = acc_centered - low_acc
+    residual_gyr = gyr_centered - low_gyr
+
+    gyr_weights, gyr_low_ranges, gyr_residual_ranges, dominant_gyr_axes = calculate_axis_weights(
+        low_gyr,
+        residual_gyr,
+        config["axis_selection_ratio"],
+    )
+    acc_weights, acc_low_ranges, acc_residual_ranges, dominant_acc_axes = calculate_axis_weights(
+        low_acc,
+        residual_acc,
+        config["axis_selection_ratio"],
+    )
+
+    gyr_activity = get_weighted_axis_activity(low_gyr, gyr_weights)
+    acc_activity = get_weighted_axis_activity(low_acc, acc_weights)
+
+    gyr_motion = robust_normalize_positive(gyr_activity)
+    acc_motion = robust_normalize_positive(acc_activity)
+
+    motion_signal = 0.82 * gyr_motion + 0.18 * acc_motion
+    motion_signal = smooth_signal(motion_signal, 3)
+
+    dominant_gyr_low_range = float(
+        np.sum(gyr_low_ranges * gyr_weights)
+        if len(gyr_low_ranges) == len(gyr_weights)
+        else 0.0
+    )
+    dominant_acc_low_range = float(
+        np.sum(acc_low_ranges * acc_weights)
+        if len(acc_low_ranges) == len(acc_weights)
+        else 0.0
+    )
+
+    dominant_gyr_residual_range = float(
+        np.sum(gyr_residual_ranges * gyr_weights)
+        if len(gyr_residual_ranges) == len(gyr_weights)
+        else 0.0
+    )
+    dominant_acc_residual_range = float(
+        np.sum(acc_residual_ranges * acc_weights)
+        if len(acc_residual_ranges) == len(acc_weights)
+        else 0.0
+    )
+
+    gyr_tremor_ratio = dominant_gyr_residual_range / (
+        dominant_gyr_low_range + dominant_gyr_residual_range + 1e-8
+    )
+    acc_tremor_ratio = dominant_acc_residual_range / (
+        dominant_acc_low_range + dominant_acc_residual_range + 1e-8
+    )
+
+    debug = {
+        "dominantGyrAxes": [AXIS_NAMES[index] for index in dominant_gyr_axes],
+        "dominantAccAxes": [AXIS_NAMES[index] for index in dominant_acc_axes],
+        "gyrLowRanges": [float(value) for value in gyr_low_ranges],
+        "gyrResidualRanges": [float(value) for value in gyr_residual_ranges],
+        "accLowRanges": [float(value) for value in acc_low_ranges],
+        "accResidualRanges": [float(value) for value in acc_residual_ranges],
+        "gyrAxisWeights": [float(value) for value in gyr_weights],
+        "accAxisWeights": [float(value) for value in acc_weights],
+        "gyrTremorRatio": float(gyr_tremor_ratio),
+        "accTremorRatio": float(acc_tremor_ratio),
+        "dominantGyrLowRange": dominant_gyr_low_range,
+        "dominantAccLowRange": dominant_acc_low_range,
+        "dominantGyrResidualRange": dominant_gyr_residual_range,
+        "dominantAccResidualRange": dominant_acc_residual_range,
+        "intentionalWindowSamples": int(window_size),
+    }
+
+    return {
+        "motionSignal": motion_signal,
+        "lowGyr": low_gyr,
+        "lowAcc": low_acc,
+        "residualGyr": residual_gyr,
+        "residualAcc": residual_acc,
+        "gyrWeights": gyr_weights,
+        "accWeights": acc_weights,
+        "config": config,
+        "debug": debug,
+    }
+
+
+def calculate_intentional_motion_metrics(segment_data, selected_exercise_code=None):
+    # Calculeaza amplitudinea miscarii intentionate pentru clasificarea calitatii
+    details = calculate_intentional_motion_details(segment_data, selected_exercise_code)
+    debug = details["debug"]
+
+    dominant_gyr_range = float(debug.get("dominantGyrLowRange", 0.0))
+    dominant_acc_range = float(debug.get("dominantAccLowRange", 0.0))
+    gyr_tremor_ratio = float(debug.get("gyrTremorRatio", 0.0))
+    acc_tremor_ratio = float(debug.get("accTremorRatio", 0.0))
+
+    # Penalizam energia de tremor in amplitudine ca sa nu para miscare normala.
+    tremor_penalty = max(0.45, 1.0 - 0.45 * max(gyr_tremor_ratio, acc_tremor_ratio))
+    motion_amplitude = float(
+        (0.78 * dominant_gyr_range + 0.22 * dominant_acc_range) * tremor_penalty
+    )
+
+    return {
+        "motionAmplitude": motion_amplitude,
+        "dominantGyrRange": dominant_gyr_range,
+        "dominantAccRange": dominant_acc_range,
+        "gyrTremorRatio": gyr_tremor_ratio,
+        "accTremorRatio": acc_tremor_ratio,
+    }
+
+
+def calculate_motion_signal(segment_data, selected_exercise_code=None):
+    # Calculeaza semnalul de miscare intentionata folosit pentru varfuri
+    details = calculate_intentional_motion_details(segment_data, selected_exercise_code)
+
+    return details["motionSignal"]
+
+
+def find_active_range(motion_signal, config):
+    # Gaseste zona activa a miscarii si elimina repausul de la inceput/final
+    motion_signal = np.asarray(motion_signal, dtype=float)
+
+    if len(motion_signal) == 0:
+        return 0, 0, 0.0, 0.0
 
     percentile_95 = np.percentile(motion_signal, 95)
     percentile_20 = np.percentile(motion_signal, 20)
+    amplitude = percentile_95 - percentile_20
 
+    if amplitude < 1e-8:
+        return 0, len(motion_signal), float(percentile_20), float(amplitude)
+
+    active_threshold = percentile_20 + amplitude * config["active_threshold_factor"]
+    active_mask = motion_signal >= active_threshold
+
+    if not np.any(active_mask):
+        return 0, len(motion_signal), float(active_threshold), float(amplitude)
+
+    active_indices = np.where(active_mask)[0]
+    margin = config["active_margin_samples"]
+
+    active_start = max(0, int(active_indices[0]) - margin)
+    active_end = min(len(motion_signal), int(active_indices[-1]) + margin + 1)
+
+    if active_end <= active_start:
+        return 0, len(motion_signal), float(active_threshold), float(amplitude)
+
+    return active_start, active_end, float(active_threshold), float(amplitude)
+
+
+def merge_peak_candidates(primary_peaks, secondary_peaks, motion_signal, min_distance_samples):
+    # Combina varfurile detectate strict cu varfurile salvate de al doilea prag.
+    # Cand doua varfuri sunt prea apropiate, il pastram pe cel cu valoarea mai mare.
+    primary_peaks = np.asarray(primary_peaks, dtype=int)
+    secondary_peaks = np.asarray(secondary_peaks, dtype=int)
+    motion_signal = np.asarray(motion_signal, dtype=float)
+
+    if len(primary_peaks) == 0:
+        candidates = secondary_peaks
+    elif len(secondary_peaks) == 0:
+        candidates = primary_peaks
+    else:
+        candidates = np.unique(np.concatenate([primary_peaks, secondary_peaks]))
+
+    if len(candidates) <= 1:
+        return candidates.astype(int)
+
+    candidates = np.sort(candidates)
+    min_distance_samples = max(1, int(min_distance_samples))
+    merged = []
+
+    for peak in candidates:
+        peak = int(peak)
+
+        if peak < 0 or peak >= len(motion_signal):
+            continue
+
+        if not merged:
+            merged.append(peak)
+            continue
+
+        previous_peak = merged[-1]
+
+        if peak - previous_peak < min_distance_samples:
+            if motion_signal[peak] > motion_signal[previous_peak]:
+                merged[-1] = peak
+        else:
+            merged.append(peak)
+
+    return np.asarray(merged, dtype=int)
+
+
+def detect_repetition_peaks(segment_data, selected_exercise_code=None):
+    # Detecteaza varfurile importante ale miscarii intentionate
+    config = get_segmentation_config(selected_exercise_code)
+    motion_details = calculate_intentional_motion_details(
+        segment_data,
+        config["exercise_code"],
+    )
+    motion_signal = motion_details["motionSignal"]
+
+    if len(motion_signal) < FS:
+        return np.asarray([], dtype=int), motion_signal, MIN_PEAK_PROMINENCE, {
+            **motion_details["debug"],
+            "exerciseCodeForSegmentation": config["exercise_code"],
+            "activeStartSample": 0,
+            "activeEndSample": int(len(motion_signal)),
+            "activeThreshold": 0.0,
+            "motionAmplitude": 0.0,
+            "peakHeightThreshold": 0.0,
+            "minPeakDistanceSamples": config["min_peak_distance_samples"],
+        }
+
+    active_start, active_end, active_threshold, motion_amplitude = find_active_range(
+        motion_signal,
+        config,
+    )
+
+    active_motion_signal = motion_signal[active_start:active_end]
+
+    if len(active_motion_signal) < FS:
+        active_motion_signal = motion_signal
+        active_start = 0
+        active_end = len(motion_signal)
+
+    percentile_95 = np.percentile(active_motion_signal, 95)
+    percentile_20 = np.percentile(active_motion_signal, 20)
     signal_amplitude = percentile_95 - percentile_20
 
     prominence_threshold = max(
-        signal_amplitude * peak_prominence_factor,
+        signal_amplitude * config["prominence_factor"],
         MIN_PEAK_PROMINENCE,
     )
 
-    peaks, _ = find_peaks(
-        motion_signal,
-        distance=min_peak_distance,
+    peak_height_threshold = percentile_20 + signal_amplitude * config["height_factor"]
+
+    local_peaks, _ = find_peaks(
+        active_motion_signal,
+        distance=config["min_peak_distance_samples"],
         prominence=prominence_threshold,
+        height=peak_height_threshold,
     )
 
-    return peaks, motion_signal, prominence_threshold
+    relaxed_local_peaks = np.asarray([], dtype=int)
+    relaxed_prominence_threshold = None
+    relaxed_peak_height_threshold = None
+
+    if config.get("enable_relaxed_peak_rescue"):
+        # Pentru E8, repetarile rapide si cele cu amplitudine mica au varfuri mai mici.
+        # Al doilea prag salveaza varfurile lipsa, iar filtrul de tremor ramane activ ulterior.
+        relaxed_prominence_threshold = max(
+            prominence_threshold * config.get("relaxed_prominence_multiplier", 0.60),
+            MIN_PEAK_PROMINENCE,
+        )
+        relaxed_peak_height_threshold = percentile_20 + signal_amplitude * config.get(
+            "relaxed_height_factor",
+            0.08,
+        )
+        relaxed_local_peaks, _ = find_peaks(
+            active_motion_signal,
+            distance=config["relaxed_min_peak_distance_samples"],
+            prominence=relaxed_prominence_threshold,
+            height=relaxed_peak_height_threshold,
+        )
+        local_peaks = merge_peak_candidates(
+            local_peaks,
+            relaxed_local_peaks,
+            active_motion_signal,
+            config["relaxed_min_peak_distance_samples"],
+        )
+
+    peaks = local_peaks + active_start
+
+    detection_debug = {
+        **motion_details["debug"],
+        "exerciseCodeForSegmentation": config["exercise_code"],
+        "activeStartSample": int(active_start),
+        "activeEndSample": int(active_end),
+        "activeThreshold": float(active_threshold),
+        "motionAmplitude": float(motion_amplitude),
+        "peakHeightThreshold": float(peak_height_threshold),
+        "minPeakDistanceSamples": int(config["min_peak_distance_samples"]),
+        "prominenceFactor": float(config["prominence_factor"]),
+        "heightFactor": float(config["height_factor"]),
+        "relaxedPeakRescueEnabled": bool(config.get("enable_relaxed_peak_rescue", False)),
+        "relaxedPeakCount": int(len(relaxed_local_peaks)) if config.get("enable_relaxed_peak_rescue") else 0,
+        "relaxedProminence": float(relaxed_prominence_threshold) if relaxed_prominence_threshold is not None else None,
+        "relaxedHeightThreshold": float(relaxed_peak_height_threshold) if relaxed_peak_height_threshold is not None else None,
+        "relaxedMinPeakDistanceSamples": int(config.get("relaxed_min_peak_distance_samples", config["min_peak_distance_samples"])),
+    }
+
+    return peaks, motion_signal, prominence_threshold, detection_debug
 
 
-def segment_repetitions(segment_data, selected_exercise_code=None):
-    # Segmenteaza o sesiune in repetari individuale
-    segment_data = np.asarray(segment_data, dtype=float)
+def calculate_candidate_tremor_metrics(segment, selected_exercise_code):
+    # Verifica daca un segment scurt este mai degraba tremor decat repetare coerenta
+    metrics = calculate_intentional_motion_metrics(segment, selected_exercise_code)
+    raw_gyr = np.asarray(segment[:, 3:6], dtype=float)
+    centered_gyr = raw_gyr - np.median(raw_gyr, axis=0)
+    raw_gyr_ranges = get_axis_ranges(centered_gyr)
+    raw_gyr_range = float(np.max(raw_gyr_ranges)) if len(raw_gyr_ranges) else 0.0
 
-    exercise_code = selected_exercise_code if selected_exercise_code in (6, 7, 8) else 6
-
-    min_final_repetition_duration = MIN_FINAL_REPETITION_DURATION_BY_EXERCISE.get(
-        exercise_code,
-        int(1.50 * FS),
+    metrics["rawGyrRange"] = raw_gyr_range
+    metrics["coherentToRawRatio"] = float(
+        metrics["dominantGyrRange"] / (raw_gyr_range + 1e-8)
     )
 
-    filter_overlap = FILTER_OVERLAP_BY_EXERCISE.get(
-        exercise_code,
-        False,
-    )
+    return metrics
 
-    peaks, motion_signal, prominence = detect_repetition_peaks(
-        segment_data,
-        exercise_code,
-    )
 
-    if len(peaks) < PEAKS_PER_REPETITION:
-        detection_info = {
-            "peak_count": int(len(peaks)),
-            "prominence": float(prominence),
-            "raw_repetition_count": 0,
-            "repetition_count": 0,
-            "rejected_segments": [],
-        }
-
-        return [], [], detection_info
-
+def build_repetition_segments_from_peaks(segment_data, peaks, detection_debug, config):
+    # Transforma perechile de varfuri in segmente si respinge fragmentele de tremor
     raw_repetition_count = len(peaks) // PEAKS_PER_REPETITION
-    used_peaks = peaks[:raw_repetition_count * PEAKS_PER_REPETITION]
+    used_peaks = peaks[: raw_repetition_count * PEAKS_PER_REPETITION]
+
+    if raw_repetition_count == 0:
+        return [], [], []
+
+    active_start = int(detection_debug.get("activeStartSample", 0))
+    active_end = int(detection_debug.get("activeEndSample", len(segment_data)))
+
+    if active_end <= active_start:
+        active_start = 0
+        active_end = len(segment_data)
+
+    peak_pairs = []
+    centers = []
+
+    for repetition_index in range(raw_repetition_count):
+        first_peak_index = repetition_index * PEAKS_PER_REPETITION
+        first_peak = int(used_peaks[first_peak_index])
+        second_peak = int(used_peaks[first_peak_index + 1])
+
+        if second_peak < first_peak:
+            first_peak, second_peak = second_peak, first_peak
+
+        peak_pairs.append((first_peak, second_peak))
+        centers.append((first_peak + second_peak) / 2.0)
 
     segments = []
     segment_info = []
     rejected_segments = []
+    full_motion_metrics = calculate_intentional_motion_metrics(
+        segment_data[active_start:active_end],
+        config["exercise_code"],
+    )
+    reference_amplitude = max(
+        float(full_motion_metrics.get("dominantGyrRange", 0.0)),
+        1e-8,
+    )
 
-    last_accepted_end = -1
+    for repetition_index, (first_peak, second_peak) in enumerate(peak_pairs):
+        if repetition_index == 0:
+            start_sample = active_start
+        else:
+            start_sample = int(round((centers[repetition_index - 1] + centers[repetition_index]) / 2.0))
 
-    for repetition_index in range(raw_repetition_count):
-        first_peak_index = repetition_index * PEAKS_PER_REPETITION
+        if repetition_index == len(peak_pairs) - 1:
+            end_sample = active_end
+        else:
+            end_sample = int(round((centers[repetition_index] + centers[repetition_index + 1]) / 2.0))
 
-        first_peak = int(used_peaks[first_peak_index])
-        second_peak = int(used_peaks[first_peak_index + 1])
-
-        start_sample = max(0, first_peak - REPETITION_SEGMENT_MARGIN)
-        end_sample = min(len(segment_data), second_peak + REPETITION_SEGMENT_MARGIN + 1)
+        start_sample = max(0, min(start_sample, len(segment_data) - 1))
+        end_sample = max(start_sample + 1, min(end_sample, len(segment_data)))
 
         segment_length = end_sample - start_sample
         duration_seconds = segment_length / FS
 
-        if segment_length < min_final_repetition_duration:
+        if segment_length < config["min_segment_samples"]:
             rejected_segments.append({
                 "candidateRepetition": repetition_index + 1,
-                "startSample": start_sample,
-                "endSample": end_sample,
-                "samples": segment_length,
-                "durationSeconds": duration_seconds,
+                "startSample": int(start_sample),
+                "endSample": int(end_sample),
+                "samples": int(segment_length),
+                "durationSeconds": float(duration_seconds),
                 "reason": "duration_too_short",
             })
-
-            continue
-
-        if filter_overlap and start_sample < last_accepted_end:
-            rejected_segments.append({
-                "candidateRepetition": repetition_index + 1,
-                "startSample": start_sample,
-                "endSample": end_sample,
-                "samples": segment_length,
-                "durationSeconds": duration_seconds,
-                "reason": "overlap_with_previous_segment",
-            })
-
             continue
 
         segment = segment_data[start_sample:end_sample].copy()
+        tremor_metrics = calculate_candidate_tremor_metrics(
+            segment,
+            config["exercise_code"],
+        )
+        relative_coherent_amplitude = float(
+            tremor_metrics["dominantGyrRange"] / reference_amplitude
+        )
+        tremor_like_segment = bool(
+            relative_coherent_amplitude < config["min_coherent_amplitude_ratio"]
+            and tremor_metrics["gyrTremorRatio"] >= config["tremor_rejection_ratio"]
+            and tremor_metrics["coherentToRawRatio"] < 0.45
+        )
+
+        if tremor_like_segment:
+            rejected_segments.append({
+                "candidateRepetition": repetition_index + 1,
+                "startSample": int(start_sample),
+                "endSample": int(end_sample),
+                "samples": int(segment_length),
+                "durationSeconds": float(duration_seconds),
+                "reason": "tremor_like_low_coherence",
+                "relativeCoherentAmplitude": relative_coherent_amplitude,
+                "gyrTremorRatio": float(tremor_metrics["gyrTremorRatio"]),
+                "coherentToRawRatio": float(tremor_metrics["coherentToRawRatio"]),
+            })
+            continue
 
         segments.append(segment)
 
         segment_info.append({
             "repetitionIndex": len(segments),
-            "startSample": start_sample,
-            "endSample": end_sample,
-            "sampleCount": len(segment),
-            "durationSeconds": len(segment) / FS,
-            "firstPeak": first_peak,
-            "secondPeak": second_peak,
+            "startSample": int(start_sample),
+            "endSample": int(end_sample),
+            "sampleCount": int(len(segment)),
+            "durationSeconds": float(len(segment) / FS),
+            "firstPeak": int(first_peak),
+            "secondPeak": int(second_peak),
+            "relativeCoherentAmplitude": relative_coherent_amplitude,
+            "gyrTremorRatio": float(tremor_metrics["gyrTremorRatio"]),
+            "coherentToRawRatio": float(tremor_metrics["coherentToRawRatio"]),
         })
 
-        last_accepted_end = end_sample
+    return segments, segment_info, rejected_segments
+
+
+def segment_repetitions(segment_data, selected_exercise_code=None):
+    # Segmenteaza o sesiune in repetari individuale
+    segment_data = np.asarray(segment_data, dtype=float)
+    config = get_segmentation_config(selected_exercise_code)
+
+    peaks, motion_signal, prominence, detection_debug = detect_repetition_peaks(
+        segment_data,
+        config["exercise_code"],
+    )
+
+    if len(peaks) < PEAKS_PER_REPETITION:
+        detection_info = {
+            **detection_debug,
+            "peakCount": int(len(peaks)),
+            "peakSamples": [int(peak) for peak in peaks],
+            "prominence": float(prominence),
+            "rawRepetitionCount": 0,
+            "repetitionCount": 0,
+            "rejectedSegments": [],
+        }
+
+        return [], [], detection_info
+
+    raw_repetition_count = len(peaks) // PEAKS_PER_REPETITION
+
+    segments, segment_info, rejected_segments = build_repetition_segments_from_peaks(
+        segment_data,
+        peaks,
+        detection_debug,
+        config,
+    )
 
     detection_info = {
-        "peak_count": int(len(peaks)),
+        **detection_debug,
+        "peakCount": int(len(peaks)),
+        "peakSamples": [int(peak) for peak in peaks],
         "prominence": float(prominence),
-        "raw_repetition_count": int(raw_repetition_count),
-        "repetition_count": len(segments),
-        "rejected_segments": rejected_segments,
-        "selected_exercise_for_segmentation": exercise_code,
+        "rawRepetitionCount": int(raw_repetition_count),
+        "repetitionCount": int(len(segments)),
+        "rejectedSegments": rejected_segments,
+        "minSegmentSamples": int(config["min_segment_samples"]),
+        "minCoherentAmplitudeRatio": float(config["min_coherent_amplitude_ratio"]),
+        "tremorRejectionRatio": float(config["tremor_rejection_ratio"]),
     }
 
     return segments, segment_info, detection_info

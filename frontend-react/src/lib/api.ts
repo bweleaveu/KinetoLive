@@ -2,8 +2,7 @@
 const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:8080";
 
 export const WS_URL =
-  import.meta.env.VITE_WS_URL ??
-  API_BASE.replace(/^http/, "ws") + "/ws/sensor";
+  import.meta.env.VITE_WS_URL ?? "ws://localhost:8080/ws/sensor";
 
 // Interfata pentru exercitii cu texte in romana si engleza
 export interface Exercise {
@@ -15,6 +14,7 @@ export interface Exercise {
   descriptionEn?: string;
   active?: boolean;
 }
+
 
 export interface PatientProfile {
   id: number;
@@ -56,6 +56,9 @@ export interface TherapySession {
 
   exerciseConfidence?: number | null;
 
+  qualityModelExerciseCode?: number | null;
+  qualityModelExerciseName?: string | null;
+
   qualityCode?: number | null;
   qualityName?: string | null;
   qualityConfidence?: number | null;
@@ -76,6 +79,20 @@ export interface RepetitionResult {
 
   exerciseConfidence?: number | null;
   qualityConfidence?: number | null;
+
+  modelDetectedExerciseCode?: number | null;
+  modelDetectedExerciseName?: string | null;
+  modelDetectedExerciseConfidence?: number | null;
+
+  qualityModelExerciseCode?: number | null;
+  qualityModelExerciseName?: string | null;
+
+  classificationStartSample?: number | null;
+  classificationEndSample?: number | null;
+
+  motionAmplitude?: number | null;
+  accEnergy?: number | null;
+  gyrEnergy?: number | null;
 
   sampleCount?: number | null;
   startSample?: number | null;
@@ -136,6 +153,7 @@ export interface LiveSessionBufferStatus {
 export interface DeviceControlState {
   streamingEnabled: boolean;
   sessionId: number | null;
+
   calibrationCommandId?: number | null;
   calibrationCommand?: string | null;
   calibrationMonitoringEnabled?: boolean;
@@ -172,6 +190,13 @@ export interface MlRepetitionPrediction {
   predictedExerciseName: string;
   exerciseConfidence: number;
 
+  modelDetectedExerciseCode?: number | null;
+  modelDetectedExerciseName?: string | null;
+  modelDetectedExerciseConfidence?: number | null;
+
+  qualityModelExerciseCode?: number | null;
+  qualityModelExerciseName?: string | null;
+
   predictedQualityCode: number;
   predictedQualityName: string;
   qualityConfidence: number;
@@ -179,6 +204,13 @@ export interface MlRepetitionPrediction {
   sampleCount: number;
   startSample: number;
   endSample: number;
+
+  classificationStartSample?: number | null;
+  classificationEndSample?: number | null;
+
+  motionAmplitude?: number | null;
+  accEnergy?: number | null;
+  gyrEnergy?: number | null;
 }
 
 export interface MLAnalysisResult {
@@ -187,9 +219,16 @@ export interface MLAnalysisResult {
   durationSeconds?: number;
   repetitionCount?: number;
 
+  selectedExerciseCode?: number | null;
+  selectedExerciseName?: string | null;
+  analysisMode?: string | null;
+
   detectedExerciseCode?: number | null;
   detectedExerciseName?: string | null;
   exerciseConfidence?: number | null;
+
+  qualityModelExerciseCode?: number | null;
+  qualityModelExerciseName?: string | null;
 
   qualityCode?: number | null;
   qualityName?: string | null;
@@ -197,6 +236,9 @@ export interface MLAnalysisResult {
 
   readyForAnalysis?: boolean;
   message?: string;
+
+  segmentationInformation?: Record<string, unknown> | null;
+  motionMetrics?: Record<string, unknown> | null;
 
   repetitions?: RepetitionResult[];
 }
@@ -232,7 +274,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
     const errorText = await response.text().catch(() => "");
 
-    throw new Error(errorText || `${response.status} ${response.statusText} on ${path}`);
+    throw new Error(
+      errorText || `${response.status} ${response.statusText} on ${path}`,
+    );
   }
 
   const text = await response.text();
@@ -279,7 +323,8 @@ function normalizeSession(session: TherapySession): TherapySession {
 
 function normalizeRepetition(repetition: RepetitionResult): RepetitionResult {
   // Adapteaza raspunsul unei repetari la structura folosita de paginile existente
-  const exerciseCode = repetition.exerciseCode ?? repetition.predictedExerciseCode ?? null;
+  const exerciseCode =
+    repetition.exerciseCode ?? repetition.predictedExerciseCode ?? null;
 
   const qualityName = normalizeQualityName(
     repetition.qualityName ?? repetition.predictedQualityName ?? null,
@@ -292,6 +337,9 @@ function normalizeRepetition(repetition: RepetitionResult): RepetitionResult {
     startIndex: repetition.startIndex ?? repetition.startSample ?? null,
     endIndex: repetition.endIndex ?? repetition.endSample ?? null,
     exerciseConfidence: normalizeConfidence(repetition.exerciseConfidence),
+    modelDetectedExerciseConfidence: normalizeConfidence(
+      repetition.modelDetectedExerciseConfidence,
+    ),
     qualityConfidence: normalizeConfidence(repetition.qualityConfidence),
   };
 }
@@ -325,7 +373,8 @@ export const api = {
 
   patients: () => request<PatientProfile[]>("/api/patients"),
 
-  patient: (patientId: number) => request<PatientProfile>(`/api/patients/${patientId}`),
+  patient: (patientId: number) =>
+    request<PatientProfile>(`/api/patients/${patientId}`),
 
   createPatient: (payload: PatientProfilePayload) =>
     request<PatientProfile>("/api/patients", {
@@ -356,14 +405,34 @@ export const api = {
     return normalizeSession(session);
   },
 
+
+  updateSessionIntendedExercise: async (
+    sessionId: number,
+    intendedExerciseCode: number,
+  ) => {
+    const session = await request<TherapySession>(
+      `/api/therapy-sessions/${sessionId}/intended-exercise`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ intendedExerciseCode }),
+      },
+    );
+
+    return normalizeSession(session);
+  },
+
   patientSessions: async (patientId: number) => {
-    const sessions = await request<TherapySession[]>(`/api/therapy-sessions/patient/${patientId}`);
+    const sessions = await request<TherapySession[]>(
+      `/api/therapy-sessions/patient/${patientId}`,
+    );
 
     return sessions.map(normalizeSession);
   },
 
   session: async (sessionId: number) => {
-    const session = await request<TherapySession>(`/api/therapy-sessions/${sessionId}`);
+    const session = await request<TherapySession>(
+      `/api/therapy-sessions/${sessionId}`,
+    );
 
     return normalizeSession(session);
   },
@@ -377,15 +446,20 @@ export const api = {
   },
 
   liveSampleCount: (sessionId: number) =>
-    request<LiveSessionBufferStatus>(`/api/live-sessions/${sessionId}/sample-count`),
+    request<LiveSessionBufferStatus>(
+      `/api/live-sessions/${sessionId}/sample-count`,
+    ),
 
   liveSamples: (sessionId: number) =>
     request<SensorSample[]>(`/api/live-sessions/${sessionId}/samples`),
 
   analyze: async (sessionId: number) => {
-    const result = await request<MLAnalysisResult>(`/api/live-sessions/${sessionId}/analyze`, {
-      method: "POST",
-    });
+    const result = await request<MLAnalysisResult>(
+      `/api/live-sessions/${sessionId}/analyze`,
+      {
+        method: "POST",
+      },
+    );
 
     return normalizeMlResult(result);
   },
@@ -412,7 +486,9 @@ export const api = {
     return {
       ...result,
       mlResult: normalizeMlResult(result.mlResult),
-      savedSession: result.savedSession ? normalizeSession(result.savedSession) : null,
+      savedSession: result.savedSession
+        ? normalizeSession(result.savedSession)
+        : null,
     };
   },
 
@@ -429,30 +505,38 @@ export const api = {
     }),
 
   // Citeste starea controlului ESP32
-  deviceControlState: () => request<DeviceControlState>("/api/device-control/state"),
+  deviceControlState: () =>
+    request<DeviceControlState>("/api/device-control/state"),
 
-  deviceCalibrationStatus: () => request<DeviceCalibrationStatus>("/api/device-calibration/status"),
+  // Citeste statusul calibrarii BNO055
+  deviceCalibrationStatus: () =>
+    request<DeviceCalibrationStatus>("/api/device-calibration/status"),
 
+  // Porneste monitorizarea calibrarii BNO055
   startDeviceCalibration: () =>
     request<DeviceCalibrationStatus>("/api/device-calibration/start", {
       method: "POST",
     }),
 
+  // Opreste monitorizarea calibrarii BNO055
   stopDeviceCalibration: () =>
     request<DeviceCalibrationStatus>("/api/device-calibration/stop", {
       method: "POST",
     }),
 
+  // Salveaza calibrarea curenta in memoria nevolatila a ESP32
   saveDeviceCalibration: () =>
     request<DeviceCalibrationStatus>("/api/device-calibration/save", {
       method: "POST",
     }),
 
+  // Sterge calibrarea salvata
   clearDeviceCalibration: () =>
     request<DeviceCalibrationStatus>("/api/device-calibration/clear", {
       method: "POST",
     }),
 
+  // Cere ESP32 sa foloseasca profilul de calibrare salvat
   useSavedDeviceCalibration: () =>
     request<DeviceCalibrationStatus>("/api/device-calibration/use-saved", {
       method: "POST",
@@ -466,6 +550,15 @@ export const api = {
 
 // Exercitii locale de rezerva, folosite daca backend-ul nu raspunde
 export const EXERCISE_FALLBACK: Exercise[] = [
+  {
+    exerciseCode: 0,
+    nameRo: "Detectie automata",
+    nameEn: "Automatic detection",
+    descriptionRo:
+      "Aplicatia detecteaza automat exercitiul executat si foloseste modelul de calitate potrivit.",
+    descriptionEn:
+      "The application automatically detects the performed exercise and uses the proper quality model.",
+  },
   {
     exerciseCode: 6,
     nameRo: "Exercitiul 6",
