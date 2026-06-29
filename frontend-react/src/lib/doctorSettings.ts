@@ -1,5 +1,6 @@
 // Setari locale pentru profilul doctorului si fluxul KinetoLive
 export const DOCTOR_SETTINGS_KEY = "kinetolive:doctor-settings";
+export const DOCTOR_SETTINGS_EVENT = "kinetolive:doctor-settings-changed";
 
 export type AnalysisAction = "none" | "analyze" | "analyzeAndSave";
 export type PatientSelectionPreference = "lastSelected" | "latestAdded";
@@ -30,6 +31,27 @@ export const DEFAULT_DOCTOR_SETTINGS: DoctorSettings = {
   confirmSessionDelete: true,
 };
 
+function normalizeDoctorSettings(settings: Partial<DoctorSettings>): DoctorSettings {
+  const mergedSettings = {
+    ...DEFAULT_DOCTOR_SETTINGS,
+    ...settings,
+  };
+
+  if (![0, 6, 7, 8].includes(mergedSettings.defaultExerciseCode)) {
+    mergedSettings.defaultExerciseCode = DEFAULT_DOCTOR_SETTINGS.defaultExerciseCode;
+  }
+
+  if (!["none", "analyze", "analyzeAndSave"].includes(mergedSettings.defaultAnalysisAction)) {
+    mergedSettings.defaultAnalysisAction = DEFAULT_DOCTOR_SETTINGS.defaultAnalysisAction;
+  }
+
+  if (!["lastSelected", "latestAdded"].includes(mergedSettings.patientSelectionPreference)) {
+    mergedSettings.patientSelectionPreference = DEFAULT_DOCTOR_SETTINGS.patientSelectionPreference;
+  }
+
+  return mergedSettings;
+}
+
 export function getDoctorSettings(): DoctorSettings {
   if (typeof window === "undefined") {
     return DEFAULT_DOCTOR_SETTINGS;
@@ -42,10 +64,9 @@ export function getDoctorSettings(): DoctorSettings {
       return DEFAULT_DOCTOR_SETTINGS;
     }
 
-    return {
-      ...DEFAULT_DOCTOR_SETTINGS,
-      ...(JSON.parse(savedSettings) as Partial<DoctorSettings>),
-    };
+    return normalizeDoctorSettings(
+      JSON.parse(savedSettings) as Partial<DoctorSettings>,
+    );
   } catch {
     return DEFAULT_DOCTOR_SETTINGS;
   }
@@ -56,5 +77,20 @@ export function saveDoctorSettings(settings: DoctorSettings) {
     return;
   }
 
-  window.localStorage.setItem(DOCTOR_SETTINGS_KEY, JSON.stringify(settings));
+  const normalizedSettings = normalizeDoctorSettings(settings);
+
+  window.localStorage.setItem(
+    DOCTOR_SETTINGS_KEY,
+    JSON.stringify(normalizedSettings),
+  );
+
+  window.dispatchEvent(
+    new CustomEvent(DOCTOR_SETTINGS_EVENT, {
+      detail: { settings: normalizedSettings },
+    }),
+  );
+}
+
+export function resetDoctorSettings() {
+  saveDoctorSettings(DEFAULT_DOCTOR_SETTINGS);
 }

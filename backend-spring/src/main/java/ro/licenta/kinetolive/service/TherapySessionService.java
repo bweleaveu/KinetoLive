@@ -25,6 +25,7 @@ public class TherapySessionService {
     private final ExerciseRepository exerciseRepository;
     private final AppUserRepository appUserRepository;
     private final DoctorProfileRepository doctorProfileRepository;
+    private final LiveSessionBufferService liveSessionBufferService;
 
     @Transactional
     public TherapySessionResponseDto startSession(String doctorEmail, StartTherapySessionRequest request) {
@@ -162,6 +163,18 @@ public class TherapySessionService {
                 .stream()
                 .map(this::mapRepetitionToDto)
                 .toList();
+    }
+
+    @Transactional
+    public void deleteSession(String doctorEmail, Long sessionId) {
+        TherapySession therapySession = getOwnedSession(doctorEmail, sessionId);
+
+        List<RepetitionResult> existingRepetitions = repetitionResultRepository
+                .findAllByTherapySessionOrderByRepetitionIndexAsc(therapySession);
+
+        repetitionResultRepository.deleteAll(existingRepetitions);
+        liveSessionBufferService.clearSession(sessionId);
+        therapySessionRepository.delete(therapySession);
     }
 
     private PatientProfile getOwnedPatient(String doctorEmail, Long patientId) {
