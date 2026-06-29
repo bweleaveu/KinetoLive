@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as PatientsRouteImport } from './routes/patients'
 import { Route as LoginRouteImport } from './routes/login'
@@ -19,6 +20,11 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as SessionsIndexRouteImport } from './routes/sessions.index'
 import { Route as SessionsSessionIdRouteImport } from './routes/sessions.$sessionId'
 
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RegisterRoute = RegisterRouteImport.update({
   id: '/register',
   path: '/register',
@@ -73,6 +79,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/patients': typeof PatientsRoute
   '/register': typeof RegisterRoute
+  '/settings': typeof SettingsRoute
   '/sessions/$sessionId': typeof SessionsSessionIdRoute
   '/sessions/': typeof SessionsIndexRoute
 }
@@ -84,6 +91,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/patients': typeof PatientsRoute
   '/register': typeof RegisterRoute
+  '/settings': typeof SettingsRoute
   '/sessions/$sessionId': typeof SessionsSessionIdRoute
   '/sessions': typeof SessionsIndexRoute
 }
@@ -96,6 +104,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/patients': typeof PatientsRoute
   '/register': typeof RegisterRoute
+  '/settings': typeof SettingsRoute
   '/sessions/$sessionId': typeof SessionsSessionIdRoute
   '/sessions/': typeof SessionsIndexRoute
 }
@@ -109,6 +118,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/patients'
     | '/register'
+    | '/settings'
     | '/sessions/$sessionId'
     | '/sessions/'
   fileRoutesByTo: FileRoutesByTo
@@ -120,6 +130,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/patients'
     | '/register'
+    | '/settings'
     | '/sessions/$sessionId'
     | '/sessions'
   id:
@@ -131,6 +142,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/patients'
     | '/register'
+    | '/settings'
     | '/sessions/$sessionId'
     | '/sessions/'
   fileRoutesById: FileRoutesById
@@ -143,12 +155,20 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   PatientsRoute: typeof PatientsRoute
   RegisterRoute: typeof RegisterRoute
+  SettingsRoute: typeof SettingsRoute
   SessionsSessionIdRoute: typeof SessionsSessionIdRoute
   SessionsIndexRoute: typeof SessionsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/register': {
       id: '/register'
       path: '/register'
@@ -223,6 +243,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   PatientsRoute: PatientsRoute,
   RegisterRoute: RegisterRoute,
+  SettingsRoute: SettingsRoute,
   SessionsSessionIdRoute: SessionsSessionIdRoute,
   SessionsIndexRoute: SessionsIndexRoute,
 }

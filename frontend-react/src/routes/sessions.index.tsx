@@ -1,6 +1,6 @@
 // Pagina pentru istoricul sesiunilor pacientului in KinetoLive
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import {
   Activity,
   CheckCircle2,
@@ -10,6 +10,7 @@ import {
   Repeat,
   Search,
   Timer,
+  Trash2,
   XCircle,
 } from "lucide-react";
 
@@ -17,13 +18,14 @@ import { SectionCard, StatCard } from "@/components/StatCard";
 import { useAppLanguage } from "@/hooks/useAppLanguage";
 import { useSelectedPatient } from "@/hooks/useSelectedPatient";
 import { api, qualityBadgeClass, type TherapySession } from "@/lib/api";
+import { getDoctorSettings } from "@/lib/doctorSettings";
 
 export const Route = createFileRoute("/sessions/")({
   head: () => ({ meta: [{ title: "Sessions — KinetoLive" }] }),
   component: SessionsPage,
 });
 
-const STATUS_FILTERS = ["ALL", "STARTED", "COMPLETED", "FAILED"] as const;
+const STATUS_FILTERS = ["ALL", "STARTED", "COMPLETED"] as const;
 
 // Texte pentru pagina Sessions in romana si engleza
 const SESSIONS_TEXT = {
@@ -38,8 +40,8 @@ const SESSIONS_TEXT = {
     allPatientSessions: "Toate sesiunile pacientului",
     completed: "Finalizate",
     analyzedAndSaved: "Analizate si salvate",
-    started: "Pornite",
-    notFinalizedYet: "Nefinalizate inca",
+    started: "Nefinalizate",
+    notFinalizedYet: "Sesiuni pornite, dar nefinalizate",
     totalRepetitions: "Total repetari",
     detectedBySegmentation: "Detectate prin segmentare",
     avgDuration: "Durata medie",
@@ -64,9 +66,14 @@ const SESSIONS_TEXT = {
     tableReps: "Repetari",
     tableDuration: "Durata",
     tableConfidence: "Incredere",
-    tableDetails: "Detalii",
+    tableActions: "Actiuni",
     exercise: "Exercitiul",
     view: "Vezi",
+    deleteSession: "Sterge",
+    deletingSession: "Se sterge...",
+    deleteSessionConfirm:
+      "Sigur vrei sa stergi sesiunea #{{sessionId}}? Rezultatele salvate pentru aceasta sesiune vor fi eliminate.",
+    deleteSessionError: "Nu s-a putut sterge sesiunea:",
     exerciseConfidence: "Exercitiu",
     qualityValues: {
       Normal: "Normal",
@@ -75,9 +82,8 @@ const SESSIONS_TEXT = {
     },
     statusValues: {
       ALL: "Toate statusurile",
-      STARTED: "Pornita",
+      STARTED: "Nefinalizata",
       COMPLETED: "Finalizata",
-      FAILED: "Esuata",
     },
   },
   en: {
@@ -91,8 +97,8 @@ const SESSIONS_TEXT = {
     allPatientSessions: "All patient sessions",
     completed: "Completed",
     analyzedAndSaved: "Analyzed and saved",
-    started: "Started",
-    notFinalizedYet: "Not finalized yet",
+    started: "Unfinished",
+    notFinalizedYet: "Started but not completed",
     totalRepetitions: "Total repetitions",
     detectedBySegmentation: "Detected by segmentation",
     avgDuration: "Avg duration",
@@ -117,9 +123,14 @@ const SESSIONS_TEXT = {
     tableReps: "Reps",
     tableDuration: "Duration",
     tableConfidence: "Confidence",
-    tableDetails: "Details",
+    tableActions: "Actions",
     exercise: "Exercise",
     view: "View",
+    deleteSession: "Delete",
+    deletingSession: "Deleting...",
+    deleteSessionConfirm:
+      "Are you sure you want to delete session #{{sessionId}}? The saved results for this session will be removed.",
+    deleteSessionError: "Could not delete session:",
     exerciseConfidence: "Exercise",
     qualityValues: {
       Normal: "Normal",
@@ -128,9 +139,8 @@ const SESSIONS_TEXT = {
     },
     statusValues: {
       ALL: "All statuses",
-      STARTED: "Started",
+      STARTED: "Unfinished",
       COMPLETED: "Completed",
-      FAILED: "Failed",
     },
   },
 } as const;
@@ -145,6 +155,7 @@ function SessionsPage() {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<(typeof STATUS_FILTERS)[number]>("ALL");
+  const [deletingSessionId, setDeletingSessionId] = useState<number | null>(null);
 
   useEffect(() => {
     // Incarca sesiunile salvate pentru pacientul selectat
@@ -243,6 +254,39 @@ function SessionsPage() {
       return matchesStatus && matchesSearch;
     });
   }, [sessions, searchTerm, statusFilter]);
+
+
+  async function handleDeleteSession(session: TherapySession) {
+    // Sterge o sesiune salvata si actualizeaza lista locala
+    const doctorSettings = getDoctorSettings();
+
+    if (doctorSettings.confirmSessionDelete) {
+      const confirmMessage = text.deleteSessionConfirm.replace(
+        "{{sessionId}}",
+        String(session.id),
+      );
+
+      const confirmed = window.confirm(confirmMessage);
+
+      if (!confirmed) {
+        return;
+      }
+    }
+
+    setDeletingSessionId(session.id);
+    setError(null);
+
+    try {
+      await api.deleteSession(session.id);
+      setSessions((currentSessions) =>
+        currentSessions.filter((currentSession) => currentSession.id !== session.id),
+      );
+    } catch (caughtError) {
+      setError(`${text.deleteSessionError} ${(caughtError as Error).message}`);
+    } finally {
+      setDeletingSessionId(null);
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -346,7 +390,6 @@ function SessionsPage() {
               <option value="ALL">{text.allStatuses}</option>
               <option value="STARTED">{text.statusValues.STARTED}</option>
               <option value="COMPLETED">{text.statusValues.COMPLETED}</option>
-              <option value="FAILED">{text.statusValues.FAILED}</option>
             </select>
           </div>
         </div>
@@ -363,115 +406,147 @@ function SessionsPage() {
             </div>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[1040px] text-left text-sm">
-              <thead className="border-b border-border text-xs uppercase text-muted-foreground">
-              <tr>
-                <th className="py-3 pr-4">{text.tableSession}</th>
-                <th className="py-3 pr-4">{text.tableStatus}</th>
-                <th className="py-3 pr-4">{text.tableStarted}</th>
-                <th className="py-3 pr-4">{text.tableEnded}</th>
-                <th className="py-3 pr-4">{text.tableIntended}</th>
-                <th className="py-3 pr-4">{text.tableDetected}</th>
-                <th className="py-3 pr-4">{text.tableQuality}</th>
-                <th className="py-3 pr-4">{text.tableReps}</th>
-                <th className="py-3 pr-4">{text.tableDuration}</th>
-                <th className="py-3 pr-4">{text.tableConfidence}</th>
-                <th className="py-3 text-right">{text.tableDetails}</th>
-              </tr>
-              </thead>
-
-              <tbody>
-              {filteredSessions.map((session) => (
-                <tr
-                  key={session.id}
-                  className="border-b border-border/60 transition hover:bg-muted/40"
-                >
-                  <td className="py-3 pr-4 font-medium text-foreground">
-                    #{session.id}
-                  </td>
-
-                  <td className="py-3 pr-4">
-                    <StatusBadge
-                      status={session.status}
-                      label={formatStatus(session.status, text.statusValues)}
-                    />
-                  </td>
-
-                  <td className="py-3 pr-4 whitespace-nowrap text-muted-foreground">
-                    {formatDateTime(session.startedAt)}
-                  </td>
-
-                  <td className="py-3 pr-4 whitespace-nowrap text-muted-foreground">
-                    {formatDateTime(session.endedAt)}
-                  </td>
-
-                  <td className="py-3 pr-4 whitespace-nowrap">
-                    {text.exercise} {session.intendedExerciseCode}
-                  </td>
-
-                  <td className="py-3 pr-4 whitespace-nowrap">
-                    {session.detectedExerciseCode
-                      ? `${text.exercise} ${session.detectedExerciseCode}`
-                      : "—"}
-                  </td>
-
-                  <td className="py-3 pr-4 whitespace-nowrap">
-                    {session.qualityName ? (
-                      <span
-                        className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${qualityBadgeClass(
-                          session.qualityName,
-                        )}`}
-                      >
-                        {formatQualityName(session.qualityName, text.qualityValues)}
-                      </span>
-                    ) : (
-                      "—"
-                    )}
-                  </td>
-
-                  <td className="py-3 pr-4">{session.repetitionCount ?? 0}</td>
-
-                  <td className="py-3 pr-4 whitespace-nowrap">
-                    {typeof session.durationSeconds === "number"
-                      ? `${round(session.durationSeconds, 1)} s`
-                      : "—"}
-                  </td>
-
-                  <td className="py-3 pr-4">
-                    <div className="min-w-[130px]">
-                      <div className="mb-1 flex justify-between text-xs text-muted-foreground">
-                        <span>{text.exerciseConfidence}</span>
-                        <span>{formatPercent(session.exerciseConfidence)}</span>
-                      </div>
-                      <div className="h-2 rounded-full bg-muted">
-                        <div
-                          className="h-2 rounded-full bg-primary"
-                          style={{
-                            width: `${toPercent(session.exerciseConfidence)}%`,
-                          }}
+          <div className="space-y-2">
+            {filteredSessions.map((session) => (
+              <article
+                key={session.id}
+                className="rounded-2xl border border-border/60 bg-background/55 px-3.5 py-2.5 transition hover:border-primary/30 hover:bg-muted/30"
+              >
+                <div className="grid gap-3 lg:grid-cols-[150px_minmax(0,1fr)_155px_auto] lg:items-center xl:grid-cols-[160px_minmax(0,1fr)_170px_auto]">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2 lg:flex-col lg:items-start lg:gap-1.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-base font-semibold text-foreground">
+                          #{session.id}
+                        </span>
+                        <StatusBadge
+                          status={session.status}
+                          label={formatStatus(session.status, text.statusValues)}
                         />
                       </div>
-                    </div>
-                  </td>
 
-                  <td className="py-3 text-right">
+                      <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-muted-foreground lg:block lg:space-y-0.5">
+                        <span className="inline-block">
+                          <span className="font-medium text-foreground/80">
+                            {text.tableStarted}:
+                          </span>{" "}
+                          {formatDateTime(session.startedAt)}
+                        </span>
+                        <span className="hidden text-muted-foreground lg:hidden sm:inline">•</span>
+                        <span className="inline-block">
+                          <span className="font-medium text-foreground/80">
+                            {text.tableEnded}:
+                          </span>{" "}
+                          {formatDateTime(session.endedAt)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid min-w-0 grid-cols-2 gap-x-3 gap-y-1.5 text-sm sm:grid-cols-3 xl:grid-cols-[minmax(118px,1fr)_minmax(118px,1fr)_minmax(150px,1.2fr)_70px_78px]">
+                    <SessionField label={text.tableIntended}>
+                      {`${text.exercise} ${session.intendedExerciseCode}`}
+                    </SessionField>
+
+                    <SessionField label={text.tableDetected}>
+                      {session.detectedExerciseCode
+                        ? `${text.exercise} ${session.detectedExerciseCode}`
+                        : "—"}
+                    </SessionField>
+
+                    <SessionField label={text.tableQuality}>
+                      {session.qualityName ? (
+                        <span
+                          className={`inline-flex max-w-fit whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] font-semibold leading-5 ${qualityBadgeClass(
+                            session.qualityName,
+                          )}`}
+                        >
+                          {formatQualityNameForSessionCard(
+                            session.qualityName,
+                            text.qualityValues,
+                            language,
+                          )}
+                        </span>
+                      ) : (
+                        "—"
+                      )}
+                    </SessionField>
+
+                    <SessionField label={text.tableReps}>
+                      {String(session.repetitionCount ?? 0)}
+                    </SessionField>
+
+                    <SessionField label={text.tableDuration}>
+                      {typeof session.durationSeconds === "number"
+                        ? `${round(session.durationSeconds, 1)} s`
+                        : "—"}
+                    </SessionField>
+                  </div>
+
+                  <div className="min-w-0 lg:w-[155px] xl:w-[170px]">
+                    <div className="mb-1 flex justify-between text-xs text-muted-foreground">
+                      <span>{text.tableConfidence}</span>
+                      <span>{formatPercent(session.exerciseConfidence)}</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-muted">
+                      <div
+                        className="h-2 rounded-full bg-primary"
+                        style={{
+                          width: `${toPercent(session.exerciseConfidence)}%`,
+                        }}
+                      />
+                    </div>
+                    <div className="mt-0.5 text-[11px] text-muted-foreground">
+                      {text.exerciseConfidence}
+                    </div>
+                  </div>
+
+                  <div className="flex shrink-0 flex-wrap gap-2 lg:justify-end">
                     <Link
                       to="/sessions/$sessionId"
                       params={{ sessionId: String(session.id) }}
-                      className="inline-flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-2 text-xs font-medium transition hover:bg-muted"
+                      className="inline-flex h-9 items-center gap-2 rounded-xl border border-border bg-background px-3 text-xs font-semibold transition hover:bg-muted"
                     >
                       {text.view}
                       <ChevronRight className="h-4 w-4" />
                     </Link>
-                  </td>
-                </tr>
-              ))}
-              </tbody>
-            </table>
+
+                    <button
+                      type="button"
+                      onClick={() => void handleDeleteSession(session)}
+                      disabled={deletingSessionId === session.id}
+                      className="inline-flex h-9 items-center gap-2 rounded-xl border border-[color:var(--rose)]/30 bg-[color:var(--rose)]/5 px-3 text-xs font-semibold text-[color:var(--rose)] transition hover:bg-[color:var(--rose)]/10 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      {deletingSessionId === session.id
+                        ? text.deletingSession
+                        : text.deleteSession}
+                    </button>
+                  </div>
+                </div>
+              </article>
+            ))}
           </div>
         )}
       </SectionCard>
+    </div>
+  );
+}
+
+function SessionField({
+                        label,
+                        children,
+                      }: {
+  label: string;
+  children: ReactNode;
+}) {
+  // Afiseaza o valoare compacta pentru cardul unei sesiuni salvate
+  return (
+    <div className="min-w-0">
+      <div className="mb-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+        {label}
+      </div>
+      <div className="truncate text-sm font-semibold text-foreground">{children}</div>
     </div>
   );
 }
@@ -486,7 +561,7 @@ function StatusBadge({ status, label }: { status: string; label: string }) {
         : "border-[color:var(--rose)]/30 bg-[color:var(--rose)]/10 text-[color:var(--rose)]";
 
   return (
-    <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${className}`}>
+    <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-medium ${className}`}>
       {label}
     </span>
   );
@@ -545,6 +620,21 @@ function formatStatus(
 ): string {
   // Traduce statusul sesiunii pentru afisare
   return statusValues[status] ?? status;
+}
+
+function formatQualityNameForSessionCard(
+  qualityName: string,
+  qualityValues: Record<string, string>,
+  language: "ro" | "en",
+): string {
+  // Afiseaza calitatea intr-o forma compacta pentru lista de sesiuni
+  const translatedQualityName = formatQualityName(qualityName, qualityValues);
+
+  if (qualityName === "Small amplitude") {
+    return language === "ro" ? "Amp. mica" : "Small amp.";
+  }
+
+  return translatedQualityName;
 }
 
 function formatQualityName(

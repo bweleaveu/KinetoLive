@@ -1,20 +1,44 @@
 // Hook pentru pacientul selectat global in aplicatie
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, type PatientProfile } from "@/lib/api";
 import { getStoredToken } from "@/lib/auth";
+import { getDoctorSettings } from "@/lib/doctorSettings";
 
 export const SELECTED_PATIENT_KEY = "kinetolive:selectedPatientId";
+export const LAST_SELECTED_PATIENT_KEY = "kinetolive:lastSelectedPatientId";
 export const SELECTED_PATIENT_EVENT = "kinetolive:selected-patient-changed";
 
-function readStoredPatientId(): number | null {
+function readPatientIdFromStorage(key: string): number | null {
   if (typeof window === "undefined") {
     return null;
   }
 
-  const value = window.localStorage.getItem(SELECTED_PATIENT_KEY);
+  const value = window.localStorage.getItem(key);
   const parsed = Number(value);
 
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function readStoredPatientId(): number | null {
+  return readPatientIdFromStorage(SELECTED_PATIENT_KEY);
+}
+
+function readLastSelectedPatientId(): number | null {
+  return readPatientIdFromStorage(LAST_SELECTED_PATIENT_KEY);
+}
+
+function getLatestAddedPatientId(patients: PatientProfile[]): number | null {
+  if (patients.length === 0) {
+    return null;
+  }
+
+  return patients.reduce((latestPatient, currentPatient) => {
+    return currentPatient.id > latestPatient.id ? currentPatient : latestPatient;
+  }, patients[0]).id;
+}
+
+function patientExists(patients: PatientProfile[], patientId: number | null) {
+  return patientId !== null && patients.some((patient) => patient.id === patientId);
 }
 
 function writeStoredPatientId(patientId: number | null) {
@@ -25,14 +49,15 @@ function writeStoredPatientId(patientId: number | null) {
   const previousValue = window.localStorage.getItem(SELECTED_PATIENT_KEY);
   const nextValue = patientId ? String(patientId) : null;
 
-  if (previousValue === nextValue) {
-    return;
-  }
-
   if (nextValue) {
     window.localStorage.setItem(SELECTED_PATIENT_KEY, nextValue);
+    window.localStorage.setItem(LAST_SELECTED_PATIENT_KEY, nextValue);
   } else {
     window.localStorage.removeItem(SELECTED_PATIENT_KEY);
+  }
+
+  if (previousValue === nextValue) {
+    return;
   }
 
   window.dispatchEvent(
@@ -52,6 +77,7 @@ function resetSelectedPatientState(
 }
 
 export function useSelectedPatient() {
+  const initialLoadRef = useRef(true);
   const [patients, setPatients] = useState<PatientProfile[]>([]);
   const [selectedPatientId, setSelectedPatientIdState] = useState<number | null>(
     () => readStoredPatientId(),
@@ -59,7 +85,7 @@ export function useSelectedPatient() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const reloadPatients = useCallback(async () => {
+  const reloadPatients = useCallback(async (options?: { preserveStoredSelection?: boolean }) => {
     setLoading(true);
     setError(null);
 
@@ -76,13 +102,26 @@ export function useSelectedPatient() {
     try {
       const loadedPatients = await api.patients();
       const storedPatientId = readStoredPatientId();
-      const storedPatientExists = loadedPatients.some(
-        (patient) => patient.id === storedPatientId,
-      );
+      const lastSelectedPatientId = readLastSelectedPatientId();
+      const latestAddedPatientId = getLatestAddedPatientId(loadedPatients);
+      const settings = getDoctorSettings();
 
-      const nextPatientId = storedPatientExists
-        ? storedPatientId
-        : loadedPatients[0]?.id ?? null;
+      const shouldUseLoginPreference =
+        initialLoadRef.current && !options?.preserveStoredSelection;
+
+      let preferredPatientId = storedPatientId;
+
+      if (shouldUseLoginPreference) {
+        if (settings.patientSelectionPreference === "latestAdded") {
+          preferredPatientId = latestAddedPatientId;
+        } else if (!patientExists(loadedPatients, storedPatientId)) {
+          preferredPatientId = lastSelectedPatientId;
+        }
+      }
+
+      const nextPatientId = patientExists(loadedPatients, preferredPatientId)
+        ? preferredPatientId
+        : latestAddedPatientId;
 
       setPatients(loadedPatients);
       setSelectedPatientIdState(nextPatientId);
@@ -102,6 +141,7 @@ export function useSelectedPatient() {
 
       setError((caughtError as Error).message);
     } finally {
+      initialLoadRef.current = false;
       setLoading(false);
     }
   }, []);
@@ -113,13 +153,13 @@ export function useSelectedPatient() {
   useEffect(() => {
     const handleSelectedPatientChange = () => {
       setSelectedPatientIdState(readStoredPatientId());
-      reloadPatients();
+      reloadPatients({ preserveStoredSelection: true });
     };
 
     const handleStorageChange = (event: StorageEvent) => {
       if (event.key === SELECTED_PATIENT_KEY) {
         setSelectedPatientIdState(readStoredPatientId());
-        reloadPatients();
+        reloadPatients({ preserveStoredSelection: true });
       }
     };
 

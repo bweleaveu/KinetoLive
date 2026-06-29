@@ -3,6 +3,7 @@ package ro.licenta.kinetolive.controller;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import ro.licenta.kinetolive.dto.*;
@@ -57,6 +58,15 @@ public class TherapySessionController {
             @PathVariable Long patientId
     ) {
         return therapySessionService.getSessionsByPatient(authentication.getName(), patientId);
+    }
+
+    @DeleteMapping("/{sessionId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteSession(
+            Authentication authentication,
+            @PathVariable Long sessionId
+    ) {
+        therapySessionService.deleteSession(authentication.getName(), sessionId);
     }
 
     @GetMapping("/{sessionId}/repetitions")

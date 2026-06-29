@@ -437,6 +437,11 @@ export const api = {
     return normalizeSession(session);
   },
 
+  deleteSession: (sessionId: number) =>
+    request<void>(`/api/therapy-sessions/${sessionId}`, {
+      method: "DELETE",
+    }),
+
   sessionRepetitions: async (sessionId: number) => {
     const repetitions = await request<RepetitionResult[]>(
       `/api/therapy-sessions/${sessionId}/repetitions`,

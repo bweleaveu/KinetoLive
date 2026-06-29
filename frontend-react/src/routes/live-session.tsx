@@ -39,6 +39,11 @@ import {
 import { useSensorWebSocket } from "@/hooks/useSensorWebSocket";
 import { useAppLanguage } from "@/hooks/useAppLanguage";
 import { useSelectedPatient } from "@/hooks/useSelectedPatient";
+import {
+  DOCTOR_SETTINGS_EVENT,
+  getDoctorSettings,
+  type DoctorSettings,
+} from "@/lib/doctorSettings";
 
 export const Route = createFileRoute("/live-session")({
   head: () => ({ meta: [{ title: "Live Session — KinetoLive" }] }),
@@ -417,14 +422,24 @@ function LiveSessionPage() {
   } = useSelectedPatient();
 
   const [exercises, setExercises] = useState<Exercise[]>(EXERCISE_FALLBACK);
+  const [doctorSettings, setDoctorSettings] = useState<DoctorSettings>(() =>
+    getDoctorSettings(),
+  );
+
   const [intended, setIntended] = useState<number>(() => {
-    // Citeste exercitiul ales anterior din pagina Exercises
+    // Citeste exercitiul ales anterior sau exercitiul implicit din setarile doctorului
     const storedExercise = sessionStorage.getItem(SELECTED_EXERCISE_KEY);
     const parsedExercise = Number(storedExercise);
 
-    return Number.isFinite(parsedExercise) && parsedExercise >= 0
-      ? parsedExercise
-      : 6;
+    if (Number.isFinite(parsedExercise) && parsedExercise >= 0) {
+      return parsedExercise;
+    }
+
+    const defaultExerciseCode = getDoctorSettings().defaultExerciseCode;
+
+    return [0, 6, 7, 8].includes(defaultExerciseCode)
+      ? defaultExerciseCode
+      : 0;
   });
 
   const [sessionId, setSessionId] = useState<number | null>(null);
@@ -452,6 +467,27 @@ function LiveSessionPage() {
   const [result, setResult] = useState<MLAnalysisResult | null>(null);
 
   const ws = useSensorWebSocket(sessionId);
+
+  useEffect(() => {
+    // Tine pagina Live Session sincronizata cu preferintele locale ale doctorului
+    const reloadDoctorSettings = () => {
+      setDoctorSettings(getDoctorSettings());
+    };
+
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === "kinetolive:doctor-settings") {
+        reloadDoctorSettings();
+      }
+    };
+
+    window.addEventListener(DOCTOR_SETTINGS_EVENT, reloadDoctorSettings);
+    window.addEventListener("storage", handleStorageChange);
+
+    return () => {
+      window.removeEventListener(DOCTOR_SETTINGS_EVENT, reloadDoctorSettings);
+      window.removeEventListener("storage", handleStorageChange);
+    };
+  }, []);
 
   useEffect(() => {
     // Retraduce mesajul de succes cand se schimba limba
@@ -651,6 +687,16 @@ function LiveSessionPage() {
       setSimulating(false);
       setSessionStopped(true);
 
+      if (doctorSettings.defaultAnalysisAction === "analyze") {
+        await run("analyze");
+        return;
+      }
+
+      if (doctorSettings.defaultAnalysisAction === "analyzeAndSave") {
+        await run("save");
+        return;
+      }
+
       // Mesaj simplu, fara retraducere automata
       setSuccessMessageType(null);
       setSuccess(text.sessionStoppedMessage(sessionId));
@@ -802,6 +848,7 @@ function LiveSessionPage() {
 
           // Trimite starea de oprire catre panoul de control
           sessionStopped={sessionStopped}
+          allowExerciseChangeAfterStop={doctorSettings.allowExerciseChangeAfterStop}
 
           wsStatus={ws.status}
           sampleCount={ws.count}
@@ -1069,18 +1116,30 @@ function LiveSessionPage() {
                     />
                   </div>
 
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <ConfidenceBar label={text.exerciseConfidence} value={result.exerciseConfidence} />
-                    <ConfidenceBar label={text.qualityConfidence} value={result.qualityConfidence} />
-                  </div>
-
-                  <AnalysisModeCard result={result} text={text} />
-
-                  {result.repetitions && result.repetitions.length > 0 && (
-                    <RepetitionsTable result={result} text={text} />
+                  {doctorSettings.showConfidenceScores && (
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <ConfidenceBar label={text.exerciseConfidence} value={result.exerciseConfidence} />
+                      <ConfidenceBar label={text.qualityConfidence} value={result.qualityConfidence} />
+                    </div>
                   )}
 
-                  <SegmentationDebugCard result={result} text={text} />
+                  <AnalysisModeCard
+                    result={result}
+                    text={text}
+                    showModelDetectedExercise={doctorSettings.showModelDetectedExercise}
+                  />
+
+                  {result.repetitions && result.repetitions.length > 0 && (
+                    <RepetitionsTable
+                      result={result}
+                      text={text}
+                      settings={doctorSettings}
+                    />
+                  )}
+
+                  {doctorSettings.showMlDebug && (
+                    <SegmentationDebugCard result={result} text={text} />
+                  )}
 
                   <ResultStatusNotice
                     title={text.analysisStatusTitle}
@@ -1110,6 +1169,7 @@ function LiveControlsPanel({
 
                              // Starea de oprire a sesiunii curente
                              sessionStopped,
+                             allowExerciseChangeAfterStop,
 
                              wsStatus,
                              sampleCount,
@@ -1138,6 +1198,7 @@ function LiveControlsPanel({
 
   // Starea de oprire a sesiunii curente
   sessionStopped: boolean;
+  allowExerciseChangeAfterStop: boolean;
 
   wsStatus: string;
   sampleCount: number;
@@ -1191,7 +1252,13 @@ function LiveControlsPanel({
         <select
           value={intended}
           onChange={(event) => onExerciseChange(Number(event.target.value))}
-          disabled={(Boolean(sessionId) && !sessionStopped) || changingExercise || starting || Boolean(busy)}
+          disabled={
+            (Boolean(sessionId) &&
+              (!sessionStopped || !allowExerciseChangeAfterStop)) ||
+            changingExercise ||
+            starting ||
+            Boolean(busy)
+          }
           className="mt-2 h-10 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none transition focus:border-primary disabled:cursor-not-allowed disabled:opacity-60"
         >
           {exercises
@@ -1543,9 +1610,11 @@ function QualityFeedbackCard({
 function AnalysisModeCard({
                             result,
                             text,
+                            showModelDetectedExercise,
                           }: {
   result: MLAnalysisResult;
   text: LiveSessionText;
+  showModelDetectedExercise: boolean;
 }) {
   // Afiseaza diferenta dintre exercitiul selectat si exercitiul vazut de model
   const modeLabel =
@@ -1554,7 +1623,11 @@ function AnalysisModeCard({
       : text.automaticDetection;
 
   return (
-    <div className="grid gap-3 md:grid-cols-3">
+    <div
+      className={`grid gap-3 ${
+        showModelDetectedExercise ? "md:grid-cols-3" : "md:grid-cols-2"
+      }`}
+    >
       <ResultMetric
         label={text.analysisMode}
         value={modeLabel}
@@ -1567,11 +1640,13 @@ function AnalysisModeCard({
         icon={Dumbbell}
       />
 
-      <ResultMetric
-        label={text.modelDetectedExercise}
-        value={formatExerciseResult(result.detectedExerciseCode, text)}
-        icon={Activity}
-      />
+      {showModelDetectedExercise && (
+        <ResultMetric
+          label={text.modelDetectedExercise}
+          value={formatExerciseResult(result.detectedExerciseCode, text)}
+          icon={Activity}
+        />
+      )}
     </div>
   );
 }
@@ -1579,9 +1654,11 @@ function AnalysisModeCard({
 function RepetitionsTable({
                             result,
                             text,
+                            settings,
                           }: {
   result: MLAnalysisResult;
   text: LiveSessionText;
+  settings: DoctorSettings;
 }) {
   // Afiseaza fiecare repetare detectata si clasificarea ei
   const repetitions = result.repetitions ?? [];
@@ -1598,15 +1675,21 @@ function RepetitionsTable({
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[760px] text-left text-sm">
+        <table className="w-full min-w-[680px] text-left text-sm">
           <thead className="bg-muted/40 text-xs uppercase text-muted-foreground">
           <tr>
             <th className="px-4 py-3">#</th>
             <th className="px-4 py-3">{text.quality}</th>
-            <th className="px-4 py-3">{text.qualityConfidence}</th>
+            {settings.showConfidenceScores && (
+              <th className="px-4 py-3">{text.qualityConfidence}</th>
+            )}
             <th className="px-4 py-3">{text.evaluatedExercise}</th>
-            <th className="px-4 py-3">{text.segment}</th>
-            <th className="px-4 py-3">{text.classificationWindow}</th>
+            {settings.showSegments && (
+              <>
+                <th className="px-4 py-3">{text.segment}</th>
+                <th className="px-4 py-3">{text.classificationWindow}</th>
+              </>
+            )}
             <th className="px-4 py-3">{text.samples}</th>
           </tr>
           </thead>
@@ -1629,9 +1712,11 @@ function RepetitionsTable({
                       {formatQualityName(qualityName, text.qualityValues)}
                     </span>
                 </td>
-                <td className="px-4 py-3 text-muted-foreground">
-                  {toPercent(repetition.qualityConfidence).toFixed(1)}%
-                </td>
+                {settings.showConfidenceScores && (
+                  <td className="px-4 py-3 text-muted-foreground">
+                    {toPercent(repetition.qualityConfidence).toFixed(1)}%
+                  </td>
+                )}
                 <td className="px-4 py-3 text-muted-foreground">
                   <div>
                     {formatExerciseResult(
@@ -1641,7 +1726,8 @@ function RepetitionsTable({
                       text,
                     )}
                   </div>
-                  {repetition.modelDetectedExerciseCode &&
+                  {settings.showModelDetectedExercise &&
+                    repetition.modelDetectedExerciseCode &&
                     repetition.modelDetectedExerciseCode !==
                     (repetition.qualityModelExerciseCode ?? result.qualityModelExerciseCode) && (
                       <div className="mt-1 text-xs text-muted-foreground/70">
@@ -1657,15 +1743,19 @@ function RepetitionsTable({
                       </div>
                     )}
                 </td>
-                <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
-                  {formatSampleRange(repetition.startSample, repetition.endSample)}
-                </td>
-                <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
-                  {formatSampleRange(
-                    repetition.classificationStartSample,
-                    repetition.classificationEndSample,
-                  )}
-                </td>
+                {settings.showSegments && (
+                  <>
+                    <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
+                      {formatSampleRange(repetition.startSample, repetition.endSample)}
+                    </td>
+                    <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
+                      {formatSampleRange(
+                        repetition.classificationStartSample,
+                        repetition.classificationEndSample,
+                      )}
+                    </td>
+                  </>
+                )}
                 <td className="px-4 py-3 text-muted-foreground">
                   {repetition.sampleCount ?? "—"}
                 </td>
