@@ -61,6 +61,10 @@ const LIVE_SESSION_TEXT = {
     sessionStarted: (sessionId: number, exerciseLabel: string) =>
       `Sesiunea #${sessionId} a fost pornita pentru ${exerciseLabel}.`,
     couldNotStartSession: "Nu s-a putut porni sesiunea:",
+    exerciseChanged:
+      "Exercitiul sesiunii a fost actualizat. Acum poti rula analiza cu noua selectie.",
+    couldNotChangeExercise: "Nu s-a putut schimba exercitiul sesiunii:",
+    updatingExercise: "Se actualizeaza exercitiul...",
     mlAnalysisCompleted: "Analiza prin invatare automata a fost finalizata.",
     mlAnalysisSaved: "Analiza prin invatare automata a fost finalizata si salvata.",
     liveBufferCleared: "Bufferul live a fost golit.",
@@ -232,6 +236,10 @@ const LIVE_SESSION_TEXT = {
     sessionStarted: (sessionId: number, exerciseLabel: string) =>
       `Session #${sessionId} was started for ${exerciseLabel}.`,
     couldNotStartSession: "Could not start session:",
+    exerciseChanged:
+      "The session exercise was updated. You can now run the analysis with the new selection.",
+    couldNotChangeExercise: "Could not change the session exercise:",
+    updatingExercise: "Updating exercise...",
     mlAnalysisCompleted: "Machine learning analysis was completed.",
     mlAnalysisSaved: "Machine learning analysis was completed and saved.",
     liveBufferCleared: "Live buffer was cleared.",
@@ -425,6 +433,7 @@ function LiveSessionPage() {
   const [sessionStopped, setSessionStopped] = useState(false);
 
   const [starting, setStarting] = useState(false);
+  const [changingExercise, setChangingExercise] = useState(false);
   const [busy, setBusy] = useState<"analyze" | "save" | "clear" | null>(null);
   const [simulating, setSimulating] = useState(false);
 
@@ -552,6 +561,43 @@ function LiveSessionPage() {
 
   const lastSample = ws.samples[ws.samples.length - 1] ?? null;
   const hasLiveData = ws.samples.length > 0;
+
+  // Schimba exercitiul local sau actualizeaza sesiunea oprita in backend.
+  const changeIntendedExercise = async (exerciseCode: number) => {
+    if (exerciseCode === intended || changingExercise) {
+      return;
+    }
+
+    setError(null);
+    setSuccessMessageType(null);
+    setSuccess(null);
+    setResult(null);
+
+    if (!sessionId) {
+      setIntended(exerciseCode);
+      return;
+    }
+
+    if (!sessionStopped) {
+      return;
+    }
+
+    setChangingExercise(true);
+
+    try {
+      const updatedSession = await api.updateSessionIntendedExercise(
+        sessionId,
+        exerciseCode,
+      );
+
+      setIntended(updatedSession.intendedExerciseCode ?? exerciseCode);
+      setSuccess(text.exerciseChanged);
+    } catch (caughtError) {
+      setError(`${text.couldNotChangeExercise} ${(caughtError as Error).message}`);
+    } finally {
+      setChangingExercise(false);
+    }
+  };
 
   // Porneste o sesiune noua si anunta backend-ul ca ESP32 trebuie sa transmita automat
   const startSession = async () => {
@@ -760,17 +806,13 @@ function LiveSessionPage() {
           wsStatus={ws.status}
           sampleCount={ws.count}
           starting={starting}
+          changingExercise={changingExercise}
           busy={busy}
           simulating={simulating}
           canSendLiveData={canSendLiveData}
           canStartSession={Boolean(selectedPatientId) && !patientLoading}
           lastSample={lastSample}
-          onExerciseChange={(exerciseCode) => {
-            setIntended(exerciseCode);
-            setResult(null);
-            setSuccessMessageType(null);
-            setSuccess(null);
-          }}
+          onExerciseChange={changeIntendedExercise}
           onStartSession={startSession}
           onEndSession={endSession}
           onStartSimulator={startSimulator}
@@ -1072,6 +1114,7 @@ function LiveControlsPanel({
                              wsStatus,
                              sampleCount,
                              starting,
+                             changingExercise,
                              busy,
                              simulating,
                              canSendLiveData,
@@ -1099,12 +1142,13 @@ function LiveControlsPanel({
   wsStatus: string;
   sampleCount: number;
   starting: boolean;
+  changingExercise: boolean;
   busy: "analyze" | "save" | "clear" | null;
   simulating: boolean;
   canSendLiveData: boolean;
   canStartSession: boolean;
   lastSample: SensorSample | null;
-  onExerciseChange: (exerciseCode: number) => void;
+  onExerciseChange: (exerciseCode: number) => void | Promise<void>;
 
   // Tipurile actualizate pentru actiuni care pot fi asincrone
   onStartSession: () => void | Promise<void>;
@@ -1147,7 +1191,7 @@ function LiveControlsPanel({
         <select
           value={intended}
           onChange={(event) => onExerciseChange(Number(event.target.value))}
-          disabled={Boolean(sessionId)}
+          disabled={(Boolean(sessionId) && !sessionStopped) || changingExercise || starting || Boolean(busy)}
           className="mt-2 h-10 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none transition focus:border-primary disabled:cursor-not-allowed disabled:opacity-60"
         >
           {exercises
@@ -1170,6 +1214,12 @@ function LiveControlsPanel({
             })}
         </select>
 
+        {changingExercise && (
+          <p className="mt-2 text-xs text-muted-foreground">
+            {text.updatingExercise}
+          </p>
+        )}
+
         <div className="mt-4 grid grid-cols-2 gap-2">
           <InfoPill label={text.session} value={sessionId ? `#${sessionId}` : text.noSession} />
           <InfoPill label={text.samples} value={String(sampleCount)} />
@@ -1182,7 +1232,7 @@ function LiveControlsPanel({
             onClick={onStartSession}
 
             // Permite pornirea unei sesiuni noi daca sesiunea curenta a fost oprita
-            disabled={!canStartSession || starting || (Boolean(sessionId) && !sessionStopped)}
+            disabled={!canStartSession || starting || changingExercise || (Boolean(sessionId) && !sessionStopped)}
 
             className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
           >
@@ -1194,7 +1244,7 @@ function LiveControlsPanel({
             onClick={onEndSession}
 
             // Opreste doar daca exista sesiune si inca nu este oprita
-            disabled={!sessionId || sessionStopped}
+            disabled={!sessionId || sessionStopped || changingExercise}
 
             className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-background px-4 py-2.5 text-sm font-semibold transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
           >
@@ -1204,7 +1254,7 @@ function LiveControlsPanel({
 
           <button
             onClick={onStartSimulator}
-            disabled={!canSendLiveData || simulating}
+            disabled={!canSendLiveData || simulating || changingExercise}
             className="inline-flex items-center justify-center gap-2 rounded-xl border border-mint/30 bg-[color:var(--mint)]/10 px-4 py-2.5 text-sm font-semibold text-[color:var(--mint)] transition hover:bg-[color:var(--mint)]/15 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Activity className="h-4 w-4" />
@@ -1213,7 +1263,7 @@ function LiveControlsPanel({
 
           <button
             onClick={onStopSimulator}
-            disabled={!simulating}
+            disabled={!simulating || changingExercise}
             className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-background px-4 py-2.5 text-sm font-semibold transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
           >
             <CircleStop className="h-4 w-4" />
@@ -1222,7 +1272,7 @@ function LiveControlsPanel({
 
           <button
             onClick={onAnalyze}
-            disabled={!sessionId || busy !== null}
+            disabled={!sessionId || changingExercise || busy !== null}
             className="inline-flex items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-4 py-2.5 text-sm font-semibold text-primary transition hover:bg-primary/15 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Send className="h-4 w-4" />
@@ -1231,7 +1281,7 @@ function LiveControlsPanel({
 
           <button
             onClick={onSave}
-            disabled={!sessionId || busy !== null}
+            disabled={!sessionId || changingExercise || busy !== null}
             className="inline-flex items-center justify-center gap-2 rounded-xl border border-cyan/30 bg-[color:var(--cyan)]/10 px-4 py-2.5 text-sm font-semibold text-[color:var(--cyan)] transition hover:bg-[color:var(--cyan)]/15 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Save className="h-4 w-4" />
@@ -1240,7 +1290,7 @@ function LiveControlsPanel({
 
           <button
             onClick={onClear}
-            disabled={!sessionId || busy !== null}
+            disabled={!sessionId || changingExercise || busy !== null}
             className="inline-flex items-center justify-center gap-2 rounded-xl border border-rose/30 bg-[color:var(--rose)]/10 px-4 py-2.5 text-sm font-semibold text-[color:var(--rose)] transition hover:bg-[color:var(--rose)]/15 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Trash2 className="h-4 w-4" />
@@ -1550,27 +1600,27 @@ function RepetitionsTable({
       <div className="overflow-x-auto">
         <table className="w-full min-w-[760px] text-left text-sm">
           <thead className="bg-muted/40 text-xs uppercase text-muted-foreground">
-            <tr>
-              <th className="px-4 py-3">#</th>
-              <th className="px-4 py-3">{text.quality}</th>
-              <th className="px-4 py-3">{text.qualityConfidence}</th>
-              <th className="px-4 py-3">{text.evaluatedExercise}</th>
-              <th className="px-4 py-3">{text.segment}</th>
-              <th className="px-4 py-3">{text.classificationWindow}</th>
-              <th className="px-4 py-3">{text.samples}</th>
-            </tr>
+          <tr>
+            <th className="px-4 py-3">#</th>
+            <th className="px-4 py-3">{text.quality}</th>
+            <th className="px-4 py-3">{text.qualityConfidence}</th>
+            <th className="px-4 py-3">{text.evaluatedExercise}</th>
+            <th className="px-4 py-3">{text.segment}</th>
+            <th className="px-4 py-3">{text.classificationWindow}</th>
+            <th className="px-4 py-3">{text.samples}</th>
+          </tr>
           </thead>
 
           <tbody className="divide-y divide-border">
-            {repetitions.map((repetition) => {
-              const qualityName = repetition.qualityName ?? repetition.predictedQualityName ?? "—";
+          {repetitions.map((repetition) => {
+            const qualityName = repetition.qualityName ?? repetition.predictedQualityName ?? "—";
 
-              return (
-                <tr key={repetition.repetitionIndex} className="align-top">
-                  <td className="px-4 py-3 font-semibold text-foreground">
-                    {repetition.repetitionIndex}
-                  </td>
-                  <td className="px-4 py-3">
+            return (
+              <tr key={repetition.repetitionIndex} className="align-top">
+                <td className="px-4 py-3 font-semibold text-foreground">
+                  {repetition.repetitionIndex}
+                </td>
+                <td className="px-4 py-3">
                     <span
                       className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${qualityBadgeClass(
                         qualityName,
@@ -1578,50 +1628,50 @@ function RepetitionsTable({
                     >
                       {formatQualityName(qualityName, text.qualityValues)}
                     </span>
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {toPercent(repetition.qualityConfidence).toFixed(1)}%
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    <div>
-                      {formatExerciseResult(
-                        repetition.qualityModelExerciseCode ??
-                          result.qualityModelExerciseCode ??
-                          repetition.exerciseCode,
+                </td>
+                <td className="px-4 py-3 text-muted-foreground">
+                  {toPercent(repetition.qualityConfidence).toFixed(1)}%
+                </td>
+                <td className="px-4 py-3 text-muted-foreground">
+                  <div>
+                    {formatExerciseResult(
+                      repetition.qualityModelExerciseCode ??
+                      result.qualityModelExerciseCode ??
+                      repetition.exerciseCode,
+                      text,
+                    )}
+                  </div>
+                  {repetition.modelDetectedExerciseCode &&
+                    repetition.modelDetectedExerciseCode !==
+                    (repetition.qualityModelExerciseCode ?? result.qualityModelExerciseCode) && (
+                      <div className="mt-1 text-xs text-muted-foreground/70">
+                        {text.modelDetectedExercise}: {formatExerciseResult(
+                        repetition.modelDetectedExerciseCode,
                         text,
                       )}
-                    </div>
-                    {repetition.modelDetectedExerciseCode &&
-                      repetition.modelDetectedExerciseCode !==
-                        (repetition.qualityModelExerciseCode ?? result.qualityModelExerciseCode) && (
-                        <div className="mt-1 text-xs text-muted-foreground/70">
-                          {text.modelDetectedExercise}: {formatExerciseResult(
-                            repetition.modelDetectedExerciseCode,
-                            text,
-                          )}
-                          {typeof repetition.modelDetectedExerciseConfidence === "number" && (
-                            <span className="ml-1">
+                        {typeof repetition.modelDetectedExerciseConfidence === "number" && (
+                          <span className="ml-1">
                               ({toPercent(repetition.modelDetectedExerciseConfidence).toFixed(1)}%)
                             </span>
-                          )}
-                        </div>
-                      )}
-                  </td>
-                  <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
-                    {formatSampleRange(repetition.startSample, repetition.endSample)}
-                  </td>
-                  <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
-                    {formatSampleRange(
-                      repetition.classificationStartSample,
-                      repetition.classificationEndSample,
+                        )}
+                      </div>
                     )}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {repetition.sampleCount ?? "—"}
-                  </td>
-                </tr>
-              );
-            })}
+                </td>
+                <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
+                  {formatSampleRange(repetition.startSample, repetition.endSample)}
+                </td>
+                <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
+                  {formatSampleRange(
+                    repetition.classificationStartSample,
+                    repetition.classificationEndSample,
+                  )}
+                </td>
+                <td className="px-4 py-3 text-muted-foreground">
+                  {repetition.sampleCount ?? "—"}
+                </td>
+              </tr>
+            );
+          })}
           </tbody>
         </table>
       </div>

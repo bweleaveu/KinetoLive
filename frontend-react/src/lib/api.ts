@@ -405,6 +405,22 @@ export const api = {
     return normalizeSession(session);
   },
 
+
+  updateSessionIntendedExercise: async (
+    sessionId: number,
+    intendedExerciseCode: number,
+  ) => {
+    const session = await request<TherapySession>(
+      `/api/therapy-sessions/${sessionId}/intended-exercise`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ intendedExerciseCode }),
+      },
+    );
+
+    return normalizeSession(session);
+  },
+
   patientSessions: async (patientId: number) => {
     const sessions = await request<TherapySession[]>(
       `/api/therapy-sessions/patient/${patientId}`,

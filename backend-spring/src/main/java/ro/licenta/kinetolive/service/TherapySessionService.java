@@ -100,6 +100,46 @@ public class TherapySessionService {
         return mapSessionToDto(savedSession);
     }
 
+
+    @Transactional
+    public TherapySessionResponseDto updateIntendedExercise(
+            String doctorEmail,
+            Long sessionId,
+            UpdateIntendedExerciseRequest request
+    ) {
+        TherapySession therapySession = getOwnedSession(doctorEmail, sessionId);
+
+        if (therapySession.getStatus() != SessionStatus.STARTED) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Exercitiul poate fi schimbat doar pentru o sesiune live nesalvata."
+            );
+        }
+
+        Exercise intendedExercise = exerciseRepository.findByExerciseCodeAndActiveTrue(request.intendedExerciseCode())
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Exercise not found: " + request.intendedExerciseCode()
+                ));
+
+        therapySession.setIntendedExercise(intendedExercise);
+
+        // Curata eventualele rezultate temporare pentru ca analiza urmatoare sa foloseasca noul exercitiu.
+        therapySession.setDetectedExercise(null);
+        therapySession.setSampleCount(null);
+        therapySession.setDurationSeconds(null);
+        therapySession.setRepetitionCount(null);
+        therapySession.setExerciseConfidence(null);
+        therapySession.setQualityCode(null);
+        therapySession.setQualityName(null);
+        therapySession.setQualityConfidence(null);
+        therapySession.setNotes(null);
+
+        TherapySession savedSession = therapySessionRepository.save(therapySession);
+
+        return mapSessionToDto(savedSession);
+    }
+
     public TherapySessionResponseDto getSessionById(String doctorEmail, Long sessionId) {
         TherapySession therapySession = getOwnedSession(doctorEmail, sessionId);
 
