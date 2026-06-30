@@ -68,6 +68,8 @@ const SESSIONS_TEXT = {
     tableConfidence: "Incredere",
     tableActions: "Actiuni",
     exercise: "Exercitiul",
+    automaticDetection: "Detectie automata",
+    automaticDetectionShort: "Detectie auto",
     view: "Vezi",
     deleteSession: "Sterge",
     deletingSession: "Se sterge...",
@@ -125,6 +127,8 @@ const SESSIONS_TEXT = {
     tableConfidence: "Confidence",
     tableActions: "Actions",
     exercise: "Exercise",
+    automaticDetection: "Automatic detection",
+    automaticDetectionShort: "Auto detection",
     view: "View",
     deleteSession: "Delete",
     deletingSession: "Deleting...",
@@ -144,6 +148,8 @@ const SESSIONS_TEXT = {
     },
   },
 } as const;
+
+type SessionsText = (typeof SESSIONS_TEXT)[keyof typeof SESSIONS_TEXT];
 
 function SessionsPage() {
   const { language } = useAppLanguage();
@@ -244,6 +250,8 @@ function SessionsPage() {
         session.qualityName,
         session.intendedExerciseCode,
         session.detectedExerciseCode,
+        session.intendedExerciseCode === 0 ? text.automaticDetection : null,
+        session.detectedExerciseCode === 0 ? text.automaticDetection : null,
       ]
         .join(" ")
         .toLowerCase();
@@ -445,13 +453,17 @@ function SessionsPage() {
 
                   <div className="grid min-w-0 grid-cols-2 gap-x-3 gap-y-1.5 text-sm sm:grid-cols-3 xl:grid-cols-[minmax(118px,1fr)_minmax(118px,1fr)_minmax(150px,1.2fr)_70px_78px]">
                     <SessionField label={text.tableIntended}>
-                      {`${text.exercise} ${session.intendedExerciseCode}`}
+                      {formatExerciseNameForSessionCard(
+                        session.intendedExerciseCode,
+                        text,
+                      )}
                     </SessionField>
 
                     <SessionField label={text.tableDetected}>
-                      {session.detectedExerciseCode
-                        ? `${text.exercise} ${session.detectedExerciseCode}`
-                        : "—"}
+                      {formatExerciseNameForSessionCard(
+                        session.detectedExerciseCode,
+                        text,
+                      )}
                     </SessionField>
 
                     <SessionField label={text.tableQuality}>
@@ -620,6 +632,35 @@ function formatStatus(
 ): string {
   // Traduce statusul sesiunii pentru afisare
   return statusValues[status] ?? status;
+}
+
+function formatExerciseName(
+  exerciseCode: number | null | undefined,
+  text: SessionsText,
+): string {
+  // Afiseaza corect detectia automata in loc de Exercitiul 0
+  if (exerciseCode === 0) {
+    return text.automaticDetection;
+  }
+
+  if (typeof exerciseCode !== "number") {
+    return "—";
+  }
+
+  return `${text.exercise} ${exerciseCode}`;
+}
+
+
+function formatExerciseNameForSessionCard(
+  exerciseCode: number | null | undefined,
+  text: SessionsText,
+): string {
+  // Afiseaza detectia automata intr-o forma scurta in cardurile din lista
+  if (exerciseCode === 0) {
+    return text.automaticDetectionShort;
+  }
+
+  return formatExerciseName(exerciseCode, text);
 }
 
 function formatQualityNameForSessionCard(

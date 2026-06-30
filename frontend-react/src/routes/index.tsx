@@ -127,6 +127,7 @@ const DASHBOARD_TEXT = {
     loading: "Se incarca...",
     noDataYet: "Nu exista date inca",
     exerciseWord: "Exercitiul",
+    automaticDetection: "Detectie automata",
     statusCompleted: "FINALIZATA",
     statusStarted: "PORNITA",
     statusOther: "NEFINALIZATA",
@@ -207,6 +208,7 @@ const DASHBOARD_TEXT = {
     loading: "Loading...",
     noDataYet: "No data yet",
     exerciseWord: "Exercise",
+    automaticDetection: "Automatic detection",
     statusCompleted: "COMPLETED",
     statusStarted: "STARTED",
     statusOther: "NOT COMPLETED",
@@ -947,7 +949,11 @@ function formatExerciseName(
   text: DashboardText,
 ): string {
   // Formateaza numele exercitiului in functie de limba
-  if (!exerciseCode) {
+  if (exerciseCode === 0) {
+    return text.automaticDetection;
+  }
+
+  if (typeof exerciseCode !== "number") {
     return "—";
   }
 

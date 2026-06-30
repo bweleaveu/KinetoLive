@@ -96,6 +96,7 @@ const SESSION_DETAILS_TEXT = {
     tableStart: "Start",
     tableEnd: "Final",
     exercise: "Exercitiul",
+    automaticDetection: "Detectie automata",
     qualityValues: {
       Normal: "Normal",
       Rapid: "Rapid",
@@ -163,6 +164,7 @@ const SESSION_DETAILS_TEXT = {
     tableStart: "Start",
     tableEnd: "End",
     exercise: "Exercise",
+    automaticDetection: "Automatic detection",
     qualityValues: {
       Normal: "Normal",
       Rapid: "Rapid",
@@ -175,6 +177,8 @@ const SESSION_DETAILS_TEXT = {
     },
   },
 } as const;
+
+type SessionDetailsText = (typeof SESSION_DETAILS_TEXT)[keyof typeof SESSION_DETAILS_TEXT];
 
 function SessionDetailsPage() {
   const { language } = useAppLanguage();
@@ -306,19 +310,15 @@ function SessionDetailsPage() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label={text.intendedExercise}
-          value={`${text.exercise} ${session.intendedExerciseCode}`}
-          hint={session.intendedExerciseName ?? text.selectedByPatient}
+          value={formatExerciseName(session.intendedExerciseCode, text)}
+          hint={session.intendedExerciseCode === 0 ? text.automaticDetection : session.intendedExerciseName ?? text.selectedByPatient}
           icon={Dumbbell}
           tone="primary"
         />
 
         <StatCard
           label={text.detectedExercise}
-          value={
-            session.detectedExerciseCode
-              ? `${text.exercise} ${session.detectedExerciseCode}`
-              : "—"
-          }
+          value={formatExerciseName(session.detectedExerciseCode, text)}
           hint={session.detectedExerciseName ?? text.mlResult}
           icon={Activity}
           tone="cyan"
@@ -511,11 +511,10 @@ function SessionDetailsPage() {
                   </td>
 
                   <td className="py-3 pr-4">
-                    {repetition.predictedExerciseCode
-                      ? `${text.exercise} ${repetition.predictedExerciseCode}`
-                      : repetition.exerciseCode
-                        ? `${text.exercise} ${repetition.exerciseCode}`
-                        : "—"}
+                    {formatExerciseName(
+                      repetition.predictedExerciseCode ?? repetition.exerciseCode,
+                      text,
+                    )}
                   </td>
 
                   <td className="py-3 pr-4">
@@ -666,6 +665,22 @@ function toPercent(value?: number | null): number {
   }
 
   return round(value * 100, 1);
+}
+
+function formatExerciseName(
+  exerciseCode: number | null | undefined,
+  text: SessionDetailsText,
+): string {
+  // Afiseaza detectia automata in loc de Exercitiul 0
+  if (exerciseCode === 0) {
+    return text.automaticDetection;
+  }
+
+  if (typeof exerciseCode !== "number") {
+    return "—";
+  }
+
+  return `${text.exercise} ${exerciseCode}`;
 }
 
 function formatPercent(value?: number | null): string {

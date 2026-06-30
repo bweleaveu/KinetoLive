@@ -37,7 +37,8 @@ const EXERCISES_TEXT = {
     errorPrefix: "Nu s-au putut incarca exercitiile din Spring Boot:",
     errorSuffix: "Sunt afisate exercitiile locale de rezerva.",
     availableExercises: "Exercitii disponibile",
-    exerciseListHint: "Exercitiile 6, 7 si 8",
+    exerciseListHint: "Detectie automata + exercitiile 6, 7 si 8",
+    autoDetection: "Detectie automata",
     sensorStream: "Flux senzori",
     mlInput: "Date pentru invatare automata",
     axes: "6 axe",
@@ -75,7 +76,8 @@ const EXERCISES_TEXT = {
     errorPrefix: "Could not load exercises from Spring Boot:",
     errorSuffix: "Showing local fallback exercises.",
     availableExercises: "Available exercises",
-    exerciseListHint: "Exercise 6, 7 and 8",
+    exerciseListHint: "Automatic detection + exercises 6, 7 and 8",
+    autoDetection: "Automatic detection",
     sensorStream: "Sensor stream",
     mlInput: "Machine learning input",
     axes: "6 axes",
@@ -226,8 +228,13 @@ function ExercisesPage() {
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 2xl:grid-cols-2">
             {/* Afiseaza cardurile exercitiilor cu nume si descriere in functie de limba */}
             {activeExercises.map((exercise) => {
-              const exerciseName =
-                language === "ro"
+              const isAutomaticDetection = exercise.exerciseCode === 0;
+
+              const exerciseName = isAutomaticDetection
+                ? language === "ro"
+                  ? exercise.nameRo || exercise.nameEn || text.autoDetection
+                  : exercise.nameEn || exercise.nameRo || text.autoDetection
+                : language === "ro"
                   ? exercise.nameRo || exercise.nameEn || `Exercitiul ${exercise.exerciseCode}`
                   : exercise.nameEn || exercise.nameRo || `Exercise ${exercise.exerciseCode}`;
 
@@ -236,8 +243,9 @@ function ExercisesPage() {
                   ? exercise.descriptionRo || exercise.descriptionEn || ""
                   : exercise.descriptionEn || exercise.descriptionRo || "";
 
-              const exerciseLabel =
-                language === "ro"
+              const exerciseLabel = isAutomaticDetection
+                ? text.autoDetection
+                : language === "ro"
                   ? `Exercitiul ${exercise.exerciseCode}`
                   : `Exercise ${exercise.exerciseCode}`;
 
