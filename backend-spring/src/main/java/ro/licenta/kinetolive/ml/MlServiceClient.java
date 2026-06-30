@@ -35,9 +35,6 @@ public class MlServiceClient {
         try {
             String requestBody = objectMapper.writeValueAsString(payload);
 
-            System.out.println("ML_ANALYZE_URL=" + getAnalyzeUrl());
-            System.out.println("ML_PAYLOAD_LENGTH=" + requestBody.length());
-            System.out.println("ML_PAYLOAD_START=" + requestBody.substring(0, Math.min(300, requestBody.length())));
 
             if (requestBody == null || requestBody.isBlank() || "null".equals(requestBody.trim())) {
                 throw new RuntimeException("ML payload was serialized as null or empty JSON.");
