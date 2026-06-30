@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   ChevronRight,
   Clock,
+  Download,
   Filter,
   Repeat,
   Search,
@@ -17,7 +18,12 @@ import {
 import { SectionCard, StatCard } from "@/components/StatCard";
 import { useAppLanguage } from "@/hooks/useAppLanguage";
 import { useSelectedPatient } from "@/hooks/useSelectedPatient";
-import { api, qualityBadgeClass, type TherapySession } from "@/lib/api";
+import {
+  api,
+  qualityBadgeClass,
+  type RepetitionResult,
+  type TherapySession,
+} from "@/lib/api";
 import { getDoctorSettings } from "@/lib/doctorSettings";
 
 export const Route = createFileRoute("/sessions/")({
@@ -56,6 +62,7 @@ const SESSIONS_TEXT = {
       "Nu a fost gasita nicio sesiune. Porneste o sesiune live pentru a genera date.",
     noSelectedPatient:
       "Nu exista pacient selectat. Mergi la sectiunea Pacienti si selecteaza un pacient.",
+    patient: "Pacient",
     tableSession: "Sesiune",
     tableStatus: "Status",
     tableStarted: "Pornita",
@@ -64,18 +71,31 @@ const SESSIONS_TEXT = {
     tableDetected: "Detectat",
     tableQuality: "Calitate",
     tableReps: "Repetari",
+    tableSamples: "Esantioane",
     tableDuration: "Durata",
     tableConfidence: "Incredere",
     tableActions: "Actiuni",
     exercise: "Exercitiul",
-    automaticDetection: "Detectie automata",
-    automaticDetectionShort: "Detectie auto",
     view: "Vezi",
     deleteSession: "Sterge",
     deletingSession: "Se sterge...",
     deleteSessionConfirm:
       "Sigur vrei sa stergi sesiunea #{{sessionId}}? Rezultatele salvate pentru aceasta sesiune vor fi eliminate.",
     deleteSessionError: "Nu s-a putut sterge sesiunea:",
+    exportReport: "Exporta raport",
+    exportReportShort: "Raport",
+    exportingReport: "Se exporta...",
+    exportingReportShort: "Export...",
+    exportReportError: "Nu s-a putut exporta raportul:",
+    reportFileName: (id: number) => `kinetolive-raport-sesiune-${id}.html`,
+    reportTitle: (id: number) => `Raport sesiune KinetoLive #${id}`,
+    reportGeneratedAt: "Generat la",
+    reportPatientSection: "Date pacient si sesiune",
+    reportMlSection: "Rezultat analiza",
+    reportRepetitionSection: "Rezultate pe repetari",
+    noRepetitionResults: "Nu au fost salvate rezultate pe repetari pentru aceasta sesiune.",
+    tableStart: "Start",
+    tableEnd: "Final",
     exerciseConfidence: "Exercitiu",
     qualityValues: {
       Normal: "Normal",
@@ -115,6 +135,7 @@ const SESSIONS_TEXT = {
       "No sessions found. Start a live session to generate data.",
     noSelectedPatient:
       "No patient selected. Go to Patients and select a patient.",
+    patient: "Patient",
     tableSession: "Session",
     tableStatus: "Status",
     tableStarted: "Started",
@@ -123,18 +144,31 @@ const SESSIONS_TEXT = {
     tableDetected: "Detected",
     tableQuality: "Quality",
     tableReps: "Reps",
+    tableSamples: "Samples",
     tableDuration: "Duration",
     tableConfidence: "Confidence",
     tableActions: "Actions",
     exercise: "Exercise",
-    automaticDetection: "Automatic detection",
-    automaticDetectionShort: "Auto detection",
     view: "View",
     deleteSession: "Delete",
     deletingSession: "Deleting...",
     deleteSessionConfirm:
       "Are you sure you want to delete session #{{sessionId}}? The saved results for this session will be removed.",
     deleteSessionError: "Could not delete session:",
+    exportReport: "Export report",
+    exportReportShort: "Report",
+    exportingReport: "Exporting...",
+    exportingReportShort: "Export...",
+    exportReportError: "Could not export report:",
+    reportFileName: (id: number) => `kinetolive-session-report-${id}.html`,
+    reportTitle: (id: number) => `KinetoLive session report #${id}`,
+    reportGeneratedAt: "Generated at",
+    reportPatientSection: "Patient and session data",
+    reportMlSection: "Analysis result",
+    reportRepetitionSection: "Repetition results",
+    noRepetitionResults: "No repetition results were saved for this session.",
+    tableStart: "Start",
+    tableEnd: "End",
     exerciseConfidence: "Exercise",
     qualityValues: {
       Normal: "Normal",
@@ -149,8 +183,6 @@ const SESSIONS_TEXT = {
   },
 } as const;
 
-type SessionsText = (typeof SESSIONS_TEXT)[keyof typeof SESSIONS_TEXT];
-
 function SessionsPage() {
   const { language } = useAppLanguage();
   const text = SESSIONS_TEXT[language];
@@ -162,6 +194,7 @@ function SessionsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<(typeof STATUS_FILTERS)[number]>("ALL");
   const [deletingSessionId, setDeletingSessionId] = useState<number | null>(null);
+  const [exportingSessionId, setExportingSessionId] = useState<number | null>(null);
 
   useEffect(() => {
     // Incarca sesiunile salvate pentru pacientul selectat
@@ -250,8 +283,6 @@ function SessionsPage() {
         session.qualityName,
         session.intendedExerciseCode,
         session.detectedExerciseCode,
-        session.intendedExerciseCode === 0 ? text.automaticDetection : null,
-        session.detectedExerciseCode === 0 ? text.automaticDetection : null,
       ]
         .join(" ")
         .toLowerCase();
@@ -293,6 +324,21 @@ function SessionsPage() {
       setError(`${text.deleteSessionError} ${(caughtError as Error).message}`);
     } finally {
       setDeletingSessionId(null);
+    }
+  }
+
+  async function handleExportReport(session: TherapySession) {
+    // Exporta rapid raportul HTML al unei sesiuni finalizate
+    setExportingSessionId(session.id);
+    setError(null);
+
+    try {
+      const repetitionResults = await api.sessionRepetitions(session.id);
+      exportSessionReport(session, repetitionResults ?? [], text);
+    } catch (caughtError) {
+      setError(`${text.exportReportError} ${(caughtError as Error).message}`);
+    } finally {
+      setExportingSessionId(null);
     }
   }
 
@@ -414,106 +460,40 @@ function SessionsPage() {
             </div>
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-3">
             {filteredSessions.map((session) => (
               <article
                 key={session.id}
-                className="rounded-2xl border border-border/60 bg-background/55 px-3.5 py-2.5 transition hover:border-primary/30 hover:bg-muted/30"
+                className="rounded-2xl border border-border/60 bg-background/55 p-4 transition hover:border-primary/30 hover:bg-muted/30"
               >
-                <div className="grid gap-3 lg:grid-cols-[150px_minmax(0,1fr)_155px_auto] lg:items-center xl:grid-cols-[160px_minmax(0,1fr)_170px_auto]">
+                <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
                   <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2 lg:flex-col lg:items-start lg:gap-1.5">
-                      <div className="flex items-center gap-2">
-                        <span className="text-base font-semibold text-foreground">
-                          #{session.id}
-                        </span>
-                        <StatusBadge
-                          status={session.status}
-                          label={formatStatus(session.status, text.statusValues)}
-                        />
-                      </div>
-
-                      <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-muted-foreground lg:block lg:space-y-0.5">
-                        <span className="inline-block">
-                          <span className="font-medium text-foreground/80">
-                            {text.tableStarted}:
-                          </span>{" "}
-                          {formatDateTime(session.startedAt)}
-                        </span>
-                        <span className="hidden text-muted-foreground lg:hidden sm:inline">•</span>
-                        <span className="inline-block">
-                          <span className="font-medium text-foreground/80">
-                            {text.tableEnded}:
-                          </span>{" "}
-                          {formatDateTime(session.endedAt)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid min-w-0 grid-cols-2 gap-x-3 gap-y-1.5 text-sm sm:grid-cols-3 xl:grid-cols-[minmax(118px,1fr)_minmax(118px,1fr)_minmax(150px,1.2fr)_70px_78px]">
-                    <SessionField label={text.tableIntended}>
-                      {formatExerciseNameForSessionCard(
-                        session.intendedExerciseCode,
-                        text,
-                      )}
-                    </SessionField>
-
-                    <SessionField label={text.tableDetected}>
-                      {formatExerciseNameForSessionCard(
-                        session.detectedExerciseCode,
-                        text,
-                      )}
-                    </SessionField>
-
-                    <SessionField label={text.tableQuality}>
-                      {session.qualityName ? (
-                        <span
-                          className={`inline-flex max-w-fit whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] font-semibold leading-5 ${qualityBadgeClass(
-                            session.qualityName,
-                          )}`}
-                        >
-                          {formatQualityNameForSessionCard(
-                            session.qualityName,
-                            text.qualityValues,
-                            language,
-                          )}
-                        </span>
-                      ) : (
-                        "—"
-                      )}
-                    </SessionField>
-
-                    <SessionField label={text.tableReps}>
-                      {String(session.repetitionCount ?? 0)}
-                    </SessionField>
-
-                    <SessionField label={text.tableDuration}>
-                      {typeof session.durationSeconds === "number"
-                        ? `${round(session.durationSeconds, 1)} s`
-                        : "—"}
-                    </SessionField>
-                  </div>
-
-                  <div className="min-w-0 lg:w-[155px] xl:w-[170px]">
-                    <div className="mb-1 flex justify-between text-xs text-muted-foreground">
-                      <span>{text.tableConfidence}</span>
-                      <span>{formatPercent(session.exerciseConfidence)}</span>
-                    </div>
-                    <div className="h-2 rounded-full bg-muted">
-                      <div
-                        className="h-2 rounded-full bg-primary"
-                        style={{
-                          width: `${toPercent(session.exerciseConfidence)}%`,
-                        }}
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                      <span className="text-lg font-semibold text-foreground">
+                        #{session.id}
+                      </span>
+                      <StatusBadge
+                        status={session.status}
+                        label={formatStatus(session.status, text.statusValues)}
                       />
-                    </div>
-                    <div className="mt-0.5 text-[11px] text-muted-foreground">
-                      {text.exerciseConfidence}
+                      <span className="hidden h-1 w-1 rounded-full bg-muted-foreground/50 sm:block" />
+                      <span className="text-xs text-muted-foreground">
+                        <span className="font-medium text-foreground/80">
+                          {text.tableStarted}:
+                        </span>{" "}
+                        {formatDateTime(session.startedAt)}
+                      </span>
+                      <span className="hidden h-1 w-1 rounded-full bg-muted-foreground/50 sm:block" />
+                      <span className="text-xs text-muted-foreground">
+                        <span className="font-medium text-foreground/80">
+                          {text.tableEnded}:
+                        </span>{" "}
+                        {formatDateTime(session.endedAt)}
+                      </span>
                     </div>
                   </div>
 
-                  <div className="flex shrink-0 flex-wrap gap-2 lg:justify-end">
+                  <div className="flex shrink-0 flex-wrap gap-2 xl:justify-end">
                     <Link
                       to="/sessions/$sessionId"
                       params={{ sessionId: String(session.id) }}
@@ -522,6 +502,21 @@ function SessionsPage() {
                       {text.view}
                       <ChevronRight className="h-4 w-4" />
                     </Link>
+
+                    {session.status === "COMPLETED" && (
+                      <button
+                        type="button"
+                        onClick={() => void handleExportReport(session)}
+                        disabled={exportingSessionId === session.id}
+                        className="inline-flex h-9 items-center gap-2 rounded-xl border border-border bg-background px-3 text-xs font-semibold transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+                        title={text.exportReport}
+                      >
+                        <Download className="h-4 w-4" />
+                        {exportingSessionId === session.id
+                          ? text.exportingReportShort
+                          : text.exportReportShort}
+                      </button>
+                    )}
 
                     <button
                       type="button"
@@ -535,6 +530,50 @@ function SessionsPage() {
                         : text.deleteSession}
                     </button>
                   </div>
+                </div>
+
+                <div className="mt-3 grid gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-[minmax(120px,1fr)_minmax(120px,1fr)_minmax(140px,1fr)_72px_82px_minmax(170px,1.25fr)]">
+                  <SessionField label={text.tableIntended}>
+                    {formatExerciseLabel(session.intendedExerciseCode, text, true)}
+                  </SessionField>
+
+                  <SessionField label={text.tableDetected}>
+                    {formatExerciseLabel(session.detectedExerciseCode, text, true)}
+                  </SessionField>
+
+                  <SessionField label={text.tableQuality}>
+                    {session.qualityName ? (
+                      <span
+                        className={`inline-flex max-w-full whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] font-semibold leading-5 ${qualityBadgeClass(
+                          session.qualityName,
+                        )}`}
+                      >
+                        {formatQualityNameForSessionCard(
+                          session.qualityName,
+                          text.qualityValues,
+                          language,
+                        )}
+                      </span>
+                    ) : (
+                      "—"
+                    )}
+                  </SessionField>
+
+                  <SessionField label={text.tableReps}>
+                    {String(session.repetitionCount ?? 0)}
+                  </SessionField>
+
+                  <SessionField label={text.tableDuration}>
+                    {typeof session.durationSeconds === "number"
+                      ? `${round(session.durationSeconds, 1)} s`
+                      : "—"}
+                  </SessionField>
+
+                  <SessionConfidenceField
+                    label={text.tableConfidence}
+                    sublabel={text.exerciseConfidence}
+                    value={session.exerciseConfidence}
+                  />
                 </div>
               </article>
             ))}
@@ -559,6 +598,37 @@ function SessionField({
         {label}
       </div>
       <div className="truncate text-sm font-semibold text-foreground">{children}</div>
+    </div>
+  );
+}
+
+function SessionConfidenceField({
+                                  label,
+                                  sublabel,
+                                  value,
+                                }: {
+  label: string;
+  sublabel: string;
+  value?: number | null;
+}) {
+  // Afiseaza increderea exercitiului fara sa ocupe o coloana separata mare
+  return (
+    <div className="min-w-0">
+      <div className="mb-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+        {label}
+      </div>
+      <div className="mb-1 flex items-center justify-between gap-2 text-xs text-muted-foreground">
+        <span className="truncate">{sublabel}</span>
+        <span className="shrink-0 font-semibold text-foreground">
+          {formatPercent(value)}
+        </span>
+      </div>
+      <div className="h-2 rounded-full bg-muted">
+        <div
+          className="h-2 rounded-full bg-primary"
+          style={{ width: `${toPercent(value)}%` }}
+        />
+      </div>
     </div>
   );
 }
@@ -634,33 +704,261 @@ function formatStatus(
   return statusValues[status] ?? status;
 }
 
-function formatExerciseName(
+function formatExerciseLabel(
   exerciseCode: number | null | undefined,
-  text: SessionsText,
+  text: (typeof SESSIONS_TEXT)[keyof typeof SESSIONS_TEXT],
+  short = false,
 ): string {
-  // Afiseaza corect detectia automata in loc de Exercitiul 0
-  if (exerciseCode === 0) {
-    return text.automaticDetection;
-  }
-
+  // Afiseaza detectia automata in loc de Exercitiul 0
   if (typeof exerciseCode !== "number") {
     return "—";
+  }
+
+  if (exerciseCode === 0) {
+    if (text.exportReport === "Export report") {
+      return short ? "Auto detection" : "Automatic detection";
+    }
+
+    return short ? "Detectie auto" : "Detectie automata";
   }
 
   return `${text.exercise} ${exerciseCode}`;
 }
 
+function exportSessionReport(
+  session: TherapySession,
+  repetitions: RepetitionResult[],
+  text: (typeof SESSIONS_TEXT)[keyof typeof SESSIONS_TEXT],
+) {
+  // Genereaza un raport HTML descarcabil din lista de sesiuni
+  const html = buildSessionReportHtml(session, repetitions, text);
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
 
-function formatExerciseNameForSessionCard(
-  exerciseCode: number | null | undefined,
-  text: SessionsText,
+  link.href = url;
+  link.download = text.reportFileName(session.id);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function buildSessionReportHtml(
+  session: TherapySession,
+  repetitions: RepetitionResult[],
+  text: (typeof SESSIONS_TEXT)[keyof typeof SESSIONS_TEXT],
 ): string {
-  // Afiseaza detectia automata intr-o forma scurta in cardurile din lista
-  if (exerciseCode === 0) {
-    return text.automaticDetectionShort;
-  }
+  // Construieste raportul HTML pentru export rapid
+  const reportRows = repetitions.length
+    ? repetitions
+      .map((repetition) => {
+        const exerciseCode =
+          repetition.predictedExerciseCode ?? repetition.exerciseCode ?? null;
+        const qualityName = repetition.qualityName ?? repetition.predictedQualityName;
 
-  return formatExerciseName(exerciseCode, text);
+        return `
+            <tr>
+              <td>${escapeHtml(String(repetition.repetitionIndex))}</td>
+              <td>${escapeHtml(formatExerciseLabel(exerciseCode, text))}</td>
+              <td>${escapeHtml(formatPercent(repetition.exerciseConfidence))}</td>
+              <td>${escapeHtml(qualityName ? formatQualityName(qualityName, text.qualityValues) : "—")}</td>
+              <td>${escapeHtml(formatPercent(repetition.qualityConfidence))}</td>
+              <td>${escapeHtml(typeof repetition.durationSeconds === "number" ? `${round(repetition.durationSeconds, 2)} s` : "—")}</td>
+              <td>${escapeHtml(String(repetition.sampleCount ?? "—"))}</td>
+              <td>${escapeHtml(String(repetition.startIndex ?? repetition.startSample ?? "—"))}</td>
+              <td>${escapeHtml(String(repetition.endIndex ?? repetition.endSample ?? "—"))}</td>
+            </tr>
+          `;
+      })
+      .join("")
+    : `<tr><td colspan="9" class="empty">${escapeHtml(text.noRepetitionResults)}</td></tr>`;
+
+  const quality = session.qualityName
+    ? formatQualityName(session.qualityName, text.qualityValues)
+    : "—";
+  const htmlLanguage = text.exportReport === "Export report" ? "en" : "ro";
+
+  return `<!doctype html>
+<html lang="${htmlLanguage}">
+<head>
+  <meta charset="utf-8" />
+  <title>${escapeHtml(text.reportTitle(session.id))}</title>
+  <style>
+    body {
+      margin: 0;
+      background: #f4f7fb;
+      color: #172033;
+      font-family: Arial, Helvetica, sans-serif;
+      line-height: 1.45;
+    }
+
+    .page {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 32px 24px;
+    }
+
+    .header {
+      border-radius: 22px;
+      background: linear-gradient(135deg, #0f766e, #2563eb);
+      color: #ffffff;
+      padding: 26px;
+      margin-bottom: 18px;
+    }
+
+    .header h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+    }
+
+    .header p {
+      margin: 0;
+      opacity: 0.9;
+      font-size: 14px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .card {
+      background: #ffffff;
+      border: 1px solid #dbe3ee;
+      border-radius: 18px;
+      padding: 18px;
+      box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+    }
+
+    .card h2 {
+      margin: 0 0 14px;
+      font-size: 17px;
+    }
+
+    .field {
+      margin-bottom: 10px;
+    }
+
+    .label {
+      display: block;
+      color: #64748b;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .value {
+      color: #111827;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      font-size: 13px;
+    }
+
+    th, td {
+      border-bottom: 1px solid #e2e8f0;
+      padding: 10px 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      color: #475569;
+      font-size: 11px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .empty {
+      color: #64748b;
+      text-align: center;
+    }
+
+    @media print {
+      body { background: #ffffff; }
+      .page { max-width: none; padding: 0; }
+      .card { box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="header">
+      <h1>${escapeHtml(text.reportTitle(session.id))}</h1>
+      <p>KinetoLive • ${escapeHtml(text.reportGeneratedAt)} ${escapeHtml(formatDateTime(new Date().toISOString()))}</p>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <h2>${escapeHtml(text.reportPatientSection)}</h2>
+        ${reportField(text.tableSession, `#${session.id}`)}
+        ${reportField(text.patient, session.patientName ?? `${text.patient} ${session.patientId}`)}
+        ${reportField(text.tableStatus, formatStatus(session.status, text.statusValues))}
+        ${reportField(text.tableStarted, formatDateTime(session.startedAt))}
+        ${reportField(text.tableEnded, formatDateTime(session.endedAt))}
+      </article>
+
+      <article class="card">
+        <h2>${escapeHtml(text.reportMlSection)}</h2>
+        ${reportField(text.tableIntended, formatExerciseLabel(session.intendedExerciseCode, text))}
+        ${reportField(text.tableDetected, formatExerciseLabel(session.detectedExerciseCode, text))}
+        ${reportField(text.tableQuality, quality)}
+        ${reportField(text.tableReps, String(session.repetitionCount ?? repetitions.length))}
+        ${reportField(text.tableDuration, typeof session.durationSeconds === "number" ? `${round(session.durationSeconds, 1)} s` : "—")}
+        ${reportField(text.tableConfidence, formatPercent(session.exerciseConfidence))}
+      </article>
+    </section>
+
+    <section class="card">
+      <h2>${escapeHtml(text.reportRepetitionSection)}</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>${escapeHtml(text.tableReps)}</th>
+            <th>${escapeHtml(text.tableDetected)}</th>
+            <th>${escapeHtml(text.exerciseConfidence)}</th>
+            <th>${escapeHtml(text.tableQuality)}</th>
+            <th>${escapeHtml(text.tableConfidence)}</th>
+            <th>${escapeHtml(text.tableDuration)}</th>
+            <th>${escapeHtml(text.tableSamples)}</th>
+            <th>${escapeHtml(text.tableStart)}</th>
+            <th>${escapeHtml(text.tableEnd)}</th>
+          </tr>
+        </thead>
+        <tbody>${reportRows}</tbody>
+      </table>
+    </section>
+  </main>
+</body>
+</html>`;
+}
+
+function reportField(label: string, value: string): string {
+  // Rand de informatie pentru raportul HTML exportat
+  return `
+    <div class="field">
+      <span class="label">${escapeHtml(label)}</span>
+      <span class="value">${escapeHtml(value)}</span>
+    </div>
+  `;
+}
+
+function escapeHtml(value: string): string {
+  // Protejeaza raportul HTML de caractere speciale
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
 function formatQualityNameForSessionCard(
