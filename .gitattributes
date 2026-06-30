@@ -1,2 +1,75 @@
-# Auto detect text files and perform LF normalization
-* text=auto
+# KinetoLive repository cleanup
+# Keep source code, configuration templates, models and firmware.
+# Ignore generated files, local IDE settings, virtual environments and build outputs.
+
+# Operating system
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment / local configuration
+.env
+.env.*.local
+.env.local
+*.local
+.dev.vars
+
+# IDEs and editors
+.idea/
+.vscode/
+*.iws
+*.iml
+*.ipr
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Java / Spring Boot / Maven
+backend-spring/target/
+backend-spring/.mvn/wrapper/maven-wrapper.jar
+backend-spring/.apt_generated/
+backend-spring/.classpath
+backend-spring/.factorypath
+backend-spring/.project
+backend-spring/.settings/
+backend-spring/.springBeans
+backend-spring/.sts4-cache/
+
+# React / Vite / TanStack
+frontend-react/node_modules/
+frontend-react/dist/
+frontend-react/dist-ssr/
+frontend-react/.output/
+frontend-react/.vinxi/
+frontend-react/.nitro/
+frontend-react/.tanstack/
+frontend-react/.wrangler/
+
+# Python / FastAPI ML service
+ml-service-python/.venv/
+ml-service-python/venv/
+ml-service-python/env/
+ml-service-python/__pycache__/
+ml-service-python/app/__pycache__/
+ml-service-python/.pytest_cache/
+ml-service-python/.mypy_cache/
+ml-service-python/.ruff_cache/
+*.py[cod]
+*$py.class
+
+# Temporary archives and local exports
+*.tmp
+*.temp
+*.bak
+*.zip
+!models/**/*.zip
