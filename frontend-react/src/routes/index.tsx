@@ -38,12 +38,7 @@ import {
 import { SectionCard, StatCard } from "@/components/StatCard";
 import { useAppLanguage } from "@/hooks/useAppLanguage";
 import { useSelectedPatient } from "@/hooks/useSelectedPatient";
-import {
-  api,
-  qualityBadgeClass,
-  type MlServiceStatus,
-  type TherapySession,
-} from "@/lib/api";
+import { api, qualityBadgeClass, type TherapySession } from "@/lib/api";
 
 export const Route = createFileRoute("/")({
   head: () => ({ meta: [{ title: "Dashboard — KinetoLive" }] }),
@@ -60,18 +55,12 @@ const DASHBOARD_TEXT = {
     subtitle:
       "Prezentare generala a sesiunilor de recuperare, monitorizarii live a senzorilor, predictiilor prin invatare automata si progresului pacientului.",
     backend: "Backend",
-    mlService: "ML Service",
     online: "online",
     offline: "offline",
     checking: "verificare",
     backendErrorPrefix: "Nu s-a putut conecta la backend-ul Spring Boot",
     backendErrorHint:
       "Verifica daca backend-ul ruleaza pe http://localhost:8080.",
-    mlOfflineHint:
-      "Porneste microserviciul Python pe http://localhost:8000 pentru analiza ML.",
-    mlModelsLoaded: "modele incarcate",
-    mlModelsMissing: "modele indisponibile",
-    mlFeatures: "trasaturi",
     startLiveSession: "Porneste sesiune live",
     startLiveSessionDescription:
       "Deschide pagina de monitorizare live si transmite datele senzorului BNO055.",
@@ -87,7 +76,7 @@ const DASHBOARD_TEXT = {
     noSelectedPatient: "Nu exista pacient selectat. Adauga sau selecteaza un pacient din sectiunea Pacienti.",
     totalSessions: "Total sesiuni",
     completed: "finalizate",
-    started: "pornite",
+    started: "nefinalizate",
     lastExercise: "Ultimul exercitiu",
     noSession: "Nicio sesiune",
     lastQuality: "Ultima calitate",
@@ -140,7 +129,7 @@ const DASHBOARD_TEXT = {
     exerciseWord: "Exercitiul",
     automaticDetection: "Detectie automata",
     statusCompleted: "FINALIZATA",
-    statusStarted: "PORNITA",
+    statusStarted: "NEFINALIZATA",
     statusOther: "NEFINALIZATA",
     qualityNormal: "Normal",
     qualityRapid: "Rapid",
@@ -151,17 +140,11 @@ const DASHBOARD_TEXT = {
     subtitle:
       "Overview of rehabilitation sessions, live sensor monitoring, machine learning predictions and patient progress.",
     backend: "Backend",
-    mlService: "ML Service",
     online: "online",
     offline: "offline",
     checking: "checking",
     backendErrorPrefix: "Could not reach Spring Boot backend",
     backendErrorHint: "Make sure the backend is running on http://localhost:8080.",
-    mlOfflineHint:
-      "Start the Python microservice on http://localhost:8000 for ML analysis.",
-    mlModelsLoaded: "models loaded",
-    mlModelsMissing: "models unavailable",
-    mlFeatures: "features",
     startLiveSession: "Start live session",
     startLiveSessionDescription:
       "Open the live monitoring page and stream BNO055 sensor data.",
@@ -177,7 +160,7 @@ const DASHBOARD_TEXT = {
     noSelectedPatient: "No patient selected. Add or select a patient from the Patients section.",
     totalSessions: "Total sessions",
     completed: "completed",
-    started: "started",
+    started: "unfinished",
     lastExercise: "Last exercise",
     noSession: "No session",
     lastQuality: "Last quality",
@@ -227,7 +210,7 @@ const DASHBOARD_TEXT = {
     exerciseWord: "Exercise",
     automaticDetection: "Automatic detection",
     statusCompleted: "COMPLETED",
-    statusStarted: "STARTED",
+    statusStarted: "UNFINISHED",
     statusOther: "NOT COMPLETED",
     qualityNormal: "Normal",
     qualityRapid: "Rapid",
@@ -250,8 +233,6 @@ function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [backendOnline, setBackendOnline] = useState<boolean | null>(null);
-  const [mlStatus, setMlStatus] = useState<MlServiceStatus | null>(null);
-  const [mlOnline, setMlOnline] = useState<boolean | null>(null);
 
   useEffect(() => {
     // Incarca datele principale pentru Dashboard
@@ -274,15 +255,6 @@ function DashboardPage() {
 
         setBackendOnline(true);
 
-        const currentMlStatus = await api.mlStatus();
-
-        if (!active) {
-          return;
-        }
-
-        setMlStatus(currentMlStatus);
-        setMlOnline(currentMlStatus.online);
-
         if (!selectedPatientId) {
           setSessions([]);
           return;
@@ -301,8 +273,6 @@ function DashboardPage() {
         }
 
         setBackendOnline(false);
-        setMlStatus(null);
-        setMlOnline(null);
         setError((caughtError as Error).message);
       } finally {
         if (active) {
@@ -458,35 +428,19 @@ function DashboardPage() {
           </p>
         </div>
 
-        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap xl:justify-end">
-          <ServiceStatusPill
-            label={text.backend}
-            status={backendOnline}
-            onlineText={text.online}
-            offlineText={text.offline}
-            checkingText={text.checking}
+        <div className="inline-flex w-fit items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm text-muted-foreground">
+          <span
+            className={`h-2 w-2 rounded-full ${
+              backendOnline ? "bg-[color:var(--mint)]" : "bg-[color:var(--amber)]"
+            }`}
           />
-
-          <ServiceStatusPill
-            label={text.mlService}
-            status={mlOnline}
-            onlineText={text.online}
-            offlineText={text.offline}
-            checkingText={text.checking}
-            details={formatMlStatusDetails(mlStatus, text)}
-          />
+          {text.backend} {backendOnline ? text.online : backendOnline === false ? text.offline : text.checking}
         </div>
       </div>
 
       {error && (
         <div className="card-soft border-rose/30 bg-[color:var(--rose)]/5 p-4 text-sm text-[color:var(--rose)]">
           {text.backendErrorPrefix}: {error}. {text.backendErrorHint}
-        </div>
-      )}
-
-      {mlOnline === false && (
-        <div className="card-soft border-amber/30 bg-[color:var(--amber)]/5 p-4 text-sm text-[color:var(--amber)]">
-          {text.mlService}: {mlStatus?.message ?? text.mlOfflineHint}
         </div>
       )}
 
@@ -836,42 +790,6 @@ function DashboardPage() {
   );
 }
 
-function ServiceStatusPill({
-                             label,
-                             status,
-                             onlineText,
-                             offlineText,
-                             checkingText,
-                             details,
-                           }: {
-  label: string;
-  status: boolean | null;
-  onlineText: string;
-  offlineText: string;
-  checkingText: string;
-  details?: string | null;
-}) {
-  const statusText =
-    status === null ? checkingText : status ? onlineText : offlineText;
-
-  return (
-    <div className="inline-flex w-fit items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm text-muted-foreground">
-      <span
-        className={`h-2 w-2 rounded-full ${
-          status === null
-            ? "bg-[color:var(--amber)]"
-            : status
-              ? "bg-[color:var(--mint)]"
-              : "bg-[color:var(--rose)]"
-        }`}
-      />
-      <span className="font-medium text-foreground">{label}</span>
-      <span>{statusText}</span>
-      {details && <span className="hidden text-muted-foreground sm:inline">· {details}</span>}
-    </div>
-  );
-}
-
 function QuickActionCard({
                            to,
                            title,
@@ -1024,26 +942,6 @@ function formatDateTime(value: string | null | undefined, language: "ro" | "en")
   }
 
   return new Date(value).toLocaleString(language === "ro" ? "ro-RO" : "en-US");
-}
-
-function formatMlStatusDetails(
-  mlStatus: MlServiceStatus | null,
-  text: DashboardText,
-) {
-  if (!mlStatus || !mlStatus.online) {
-    return null;
-  }
-
-  const modelText = mlStatus.modelsLoaded
-    ? text.mlModelsLoaded
-    : text.mlModelsMissing;
-
-  const featureText =
-    typeof mlStatus.featureCount === "number"
-      ? `${mlStatus.featureCount} ${text.mlFeatures}`
-      : null;
-
-  return featureText ? `${modelText} · ${featureText}` : modelText;
 }
 
 function formatExerciseName(
