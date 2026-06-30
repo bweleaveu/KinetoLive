@@ -6,6 +6,7 @@ import {
   Activity,
   CheckCircle2,
   Dumbbell,
+  Download,
   Gauge,
   Repeat,
   Timer,
@@ -46,6 +47,13 @@ const SESSION_DETAILS_TEXT = {
     errorSuffix: "Asigura-te ca Spring Boot ruleaza pe http://localhost:8080.",
     notFound: (id: number) => `Sesiunea #${id} nu a fost gasita.`,
     backToSessions: "Inapoi la sesiuni",
+    exportReport: "Exporta raport",
+    reportFileName: (id: number) => `kinetolive-raport-sesiune-${id}.html`,
+    reportTitle: (id: number) => `Raport sesiune KinetoLive #${id}`,
+    reportGeneratedAt: "Generat la",
+    reportPatientSection: "Date pacient si sesiune",
+    reportMlSection: "Rezultat analiza",
+    reportRepetitionSection: "Rezultate pe repetari",
     sessionTitle: (id: number) => `Sesiunea #${id}`,
     pageDescription:
       "Analiza prin invatare automata detaliata, rezultate pe repetari si calitatea executiei.",
@@ -96,7 +104,6 @@ const SESSION_DETAILS_TEXT = {
     tableStart: "Start",
     tableEnd: "Final",
     exercise: "Exercitiul",
-    automaticDetection: "Detectie automata",
     qualityValues: {
       Normal: "Normal",
       Rapid: "Rapid",
@@ -114,6 +121,13 @@ const SESSION_DETAILS_TEXT = {
     errorSuffix: "Make sure Spring Boot is running on http://localhost:8080.",
     notFound: (id: number) => `Session #${id} was not found.`,
     backToSessions: "Back to sessions",
+    exportReport: "Export report",
+    reportFileName: (id: number) => `kinetolive-session-report-${id}.html`,
+    reportTitle: (id: number) => `KinetoLive session report #${id}`,
+    reportGeneratedAt: "Generated at",
+    reportPatientSection: "Patient and session data",
+    reportMlSection: "Analysis result",
+    reportRepetitionSection: "Repetition results",
     sessionTitle: (id: number) => `Session #${id}`,
     pageDescription:
       "Detailed Machine learning analysis, repetition results and execution quality.",
@@ -164,7 +178,6 @@ const SESSION_DETAILS_TEXT = {
     tableStart: "Start",
     tableEnd: "End",
     exercise: "Exercise",
-    automaticDetection: "Automatic detection",
     qualityValues: {
       Normal: "Normal",
       Rapid: "Rapid",
@@ -177,8 +190,6 @@ const SESSION_DETAILS_TEXT = {
     },
   },
 } as const;
-
-type SessionDetailsText = (typeof SESSION_DETAILS_TEXT)[keyof typeof SESSION_DETAILS_TEXT];
 
 function SessionDetailsPage() {
   const { language } = useAppLanguage();
@@ -301,24 +312,39 @@ function SessionDetailsPage() {
           </p>
         </div>
 
-        <StatusBadge
-          status={session.status}
-          label={formatStatus(session.status, text.statusValues)}
-        />
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => exportSessionReport(session, repetitions, text)}
+            className="inline-flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-2 text-sm font-semibold transition hover:bg-muted"
+          >
+            <Download className="h-4 w-4" />
+            {text.exportReport}
+          </button>
+
+          <StatusBadge
+            status={session.status}
+            label={formatStatus(session.status, text.statusValues)}
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label={text.intendedExercise}
-          value={formatExerciseName(session.intendedExerciseCode, text)}
-          hint={session.intendedExerciseCode === 0 ? text.automaticDetection : session.intendedExerciseName ?? text.selectedByPatient}
+          value={formatExerciseLabel(session.intendedExerciseCode, text, false)}
+          hint={session.intendedExerciseName ?? text.selectedByPatient}
           icon={Dumbbell}
           tone="primary"
         />
 
         <StatCard
           label={text.detectedExercise}
-          value={formatExerciseName(session.detectedExerciseCode, text)}
+          value={
+            session.detectedExerciseCode
+              ? formatExerciseLabel(session.detectedExerciseCode, text, false)
+              : "—"
+          }
           hint={session.detectedExerciseName ?? text.mlResult}
           icon={Activity}
           tone="cyan"
@@ -511,10 +537,11 @@ function SessionDetailsPage() {
                   </td>
 
                   <td className="py-3 pr-4">
-                    {formatExerciseName(
-                      repetition.predictedExerciseCode ?? repetition.exerciseCode,
-                      text,
-                    )}
+                    {repetition.predictedExerciseCode
+                      ? formatExerciseLabel(repetition.predictedExerciseCode, text, false)
+                      : repetition.exerciseCode
+                        ? formatExerciseLabel(repetition.exerciseCode, text, false)
+                        : "—"}
                   </td>
 
                   <td className="py-3 pr-4">
@@ -667,22 +694,6 @@ function toPercent(value?: number | null): number {
   return round(value * 100, 1);
 }
 
-function formatExerciseName(
-  exerciseCode: number | null | undefined,
-  text: SessionDetailsText,
-): string {
-  // Afiseaza detectia automata in loc de Exercitiul 0
-  if (exerciseCode === 0) {
-    return text.automaticDetection;
-  }
-
-  if (typeof exerciseCode !== "number") {
-    return "—";
-  }
-
-  return `${text.exercise} ${exerciseCode}`;
-}
-
 function formatPercent(value?: number | null): string {
   // Formateaza procentul pentru afisare
   return `${toPercent(value).toFixed(1)}%`;
@@ -728,6 +739,264 @@ function formatStatus(
 ): string {
   // Traduce statusul sesiunii pentru afisare
   return statusValues[status] ?? status;
+}
+
+function formatExerciseLabel(
+  exerciseCode: number | null | undefined,
+  text: (typeof SESSION_DETAILS_TEXT)[keyof typeof SESSION_DETAILS_TEXT],
+  short = false,
+): string {
+  // Afiseaza corect detectia automata in loc de Exercitiul 0
+  if (typeof exerciseCode !== "number") {
+    return "—";
+  }
+
+  if (exerciseCode === 0) {
+    return short
+      ? text.exportReport === "Export report"
+        ? "Auto detection"
+        : "Detectie auto"
+      : text.exportReport === "Export report"
+        ? "Automatic detection"
+        : "Detectie automata";
+  }
+
+  return `${text.exercise} ${exerciseCode}`;
+}
+
+function exportSessionReport(
+  session: TherapySession,
+  repetitions: RepetitionResult[],
+  text: (typeof SESSION_DETAILS_TEXT)[keyof typeof SESSION_DETAILS_TEXT],
+) {
+  // Genereaza un raport HTML descarcabil pentru sesiunea selectata
+  const html = buildSessionReportHtml(session, repetitions, text);
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = text.reportFileName(session.id);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function buildSessionReportHtml(
+  session: TherapySession,
+  repetitions: RepetitionResult[],
+  text: (typeof SESSION_DETAILS_TEXT)[keyof typeof SESSION_DETAILS_TEXT],
+): string {
+  // Construieste continutul raportului HTML pentru export
+  const reportRows = repetitions.length
+    ? repetitions
+      .map((repetition) => {
+        const exerciseCode =
+          repetition.predictedExerciseCode ?? repetition.exerciseCode ?? null;
+        const qualityName = repetition.qualityName ?? repetition.predictedQualityName;
+
+        return `
+            <tr>
+              <td>${escapeHtml(String(repetition.repetitionIndex))}</td>
+              <td>${escapeHtml(formatExerciseLabel(exerciseCode, text))}</td>
+              <td>${escapeHtml(formatPercent(repetition.exerciseConfidence))}</td>
+              <td>${escapeHtml(qualityName ? formatQualityName(qualityName, text.qualityValues) : "—")}</td>
+              <td>${escapeHtml(formatPercent(repetition.qualityConfidence))}</td>
+              <td>${escapeHtml(typeof repetition.durationSeconds === "number" ? `${round(repetition.durationSeconds, 2)} s` : "—")}</td>
+              <td>${escapeHtml(String(repetition.sampleCount ?? "—"))}</td>
+              <td>${escapeHtml(String(repetition.startIndex ?? repetition.startSample ?? "—"))}</td>
+              <td>${escapeHtml(String(repetition.endIndex ?? repetition.endSample ?? "—"))}</td>
+            </tr>
+          `;
+      })
+      .join("")
+    : `<tr><td colspan="9" class="empty">${escapeHtml(text.noRepetitionResults)}</td></tr>`;
+
+  const quality = session.qualityName
+    ? formatQualityName(session.qualityName, text.qualityValues)
+    : "—";
+
+  return `<!doctype html>
+<html lang="${text.exportReport === "Export report" ? "en" : "ro"}">
+<head>
+  <meta charset="utf-8" />
+  <title>${escapeHtml(text.reportTitle(session.id))}</title>
+  <style>
+    body {
+      margin: 0;
+      background: #f4f7fb;
+      color: #172033;
+      font-family: Arial, Helvetica, sans-serif;
+      line-height: 1.45;
+    }
+
+    .page {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 32px 24px;
+    }
+
+    .header {
+      border-radius: 22px;
+      background: linear-gradient(135deg, #0f766e, #2563eb);
+      color: #ffffff;
+      padding: 26px;
+      margin-bottom: 18px;
+    }
+
+    .header h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+    }
+
+    .header p {
+      margin: 0;
+      opacity: 0.9;
+      font-size: 14px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .card {
+      background: #ffffff;
+      border: 1px solid #dbe3ee;
+      border-radius: 18px;
+      padding: 18px;
+      box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+    }
+
+    .card h2 {
+      margin: 0 0 14px;
+      font-size: 17px;
+    }
+
+    .field {
+      margin-bottom: 10px;
+    }
+
+    .label {
+      display: block;
+      color: #64748b;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .value {
+      color: #111827;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      font-size: 13px;
+    }
+
+    th, td {
+      border-bottom: 1px solid #e2e8f0;
+      padding: 10px 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      color: #475569;
+      font-size: 11px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .empty {
+      color: #64748b;
+      text-align: center;
+    }
+
+    @media print {
+      body { background: #ffffff; }
+      .page { max-width: none; padding: 0; }
+      .card { box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="header">
+      <h1>${escapeHtml(text.reportTitle(session.id))}</h1>
+      <p>KinetoLive • ${escapeHtml(text.reportGeneratedAt)} ${escapeHtml(formatDateTime(new Date().toISOString()))}</p>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <h2>${escapeHtml(text.reportPatientSection)}</h2>
+        ${reportField(text.patient, session.patientName ?? `${text.patient} ${session.patientId}`)}
+        ${reportField(text.status, formatStatus(session.status, text.statusValues))}
+        ${reportField(text.startedAt, formatDateTime(session.startedAt))}
+        ${reportField(text.endedAt, formatDateTime(session.endedAt))}
+      </article>
+
+      <article class="card">
+        <h2>${escapeHtml(text.reportMlSection)}</h2>
+        ${reportField(text.intendedExercise, formatExerciseLabel(session.intendedExerciseCode, text))}
+        ${reportField(text.detectedExercise, formatExerciseLabel(session.detectedExerciseCode, text))}
+        ${reportField(text.executionQuality, quality)}
+        ${reportField(text.repetitions, String(session.repetitionCount ?? repetitions.length))}
+        ${reportField(text.duration, typeof session.durationSeconds === "number" ? `${round(session.durationSeconds, 1)} s` : "—")}
+        ${reportField(text.exerciseConfidence, formatPercent(session.exerciseConfidence))}
+        ${reportField(text.qualityConfidence, formatPercent(session.qualityConfidence))}
+      </article>
+    </section>
+
+    <section class="card">
+      <h2>${escapeHtml(text.reportRepetitionSection)}</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>${escapeHtml(text.tableRep)}</th>
+            <th>${escapeHtml(text.tableExercise)}</th>
+            <th>${escapeHtml(text.tableExerciseConfidence)}</th>
+            <th>${escapeHtml(text.tableQuality)}</th>
+            <th>${escapeHtml(text.tableQualityConfidence)}</th>
+            <th>${escapeHtml(text.tableDuration)}</th>
+            <th>${escapeHtml(text.tableSamples)}</th>
+            <th>${escapeHtml(text.tableStart)}</th>
+            <th>${escapeHtml(text.tableEnd)}</th>
+          </tr>
+        </thead>
+        <tbody>${reportRows}</tbody>
+      </table>
+    </section>
+  </main>
+</body>
+</html>`;
+}
+
+function reportField(label: string, value: string): string {
+  // Rand de informatie pentru raportul HTML exportat
+  return `
+    <div class="field">
+      <span class="label">${escapeHtml(label)}</span>
+      <span class="value">${escapeHtml(value)}</span>
+    </div>
+  `;
+}
+
+function escapeHtml(value: string): string {
+  // Protejeaza raportul HTML de caractere speciale
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
 function formatQualityName(
