@@ -21,6 +21,7 @@ import {
   type PatientProfile,
   type PatientProfilePayload,
 } from "@/lib/api";
+import { getDoctorSettings } from "@/lib/doctorSettings";
 
 export const Route = createFileRoute("/patients")({
   head: () => ({ meta: [{ title: "Patients — KinetoLive" }] }),
@@ -255,10 +256,14 @@ function PatientsPage() {
   }
 
   async function handleDeletePatient(patientId: number, patientName: string) {
-    const confirmed = window.confirm(text.deleteConfirm(patientName));
+    const doctorSettings = getDoctorSettings();
 
-    if (!confirmed) {
-      return;
+    if (doctorSettings.confirmPatientDelete) {
+      const confirmed = window.confirm(text.deleteConfirm(patientName));
+
+      if (!confirmed) {
+        return;
+      }
     }
 
     setActionError(null);
