@@ -1,8 +1,7 @@
-# Dependinte pentru microserviciul Python ML
-fastapi
-uvicorn
-numpy
-scipy
-scikit-learn
-joblib
-pydantic
+fastapi>=0.115,<0.116
+uvicorn[standard]>=0.34,<0.35
+numpy>=1.26,<3
+scipy>=1.11,<2
+scikit-learn==1.6.1
+joblib>=1.4,<2
+pydantic>=2.10,<3
