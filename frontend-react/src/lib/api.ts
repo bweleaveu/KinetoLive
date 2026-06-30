@@ -213,6 +213,17 @@ export interface MlRepetitionPrediction {
   gyrEnergy?: number | null;
 }
 
+
+export interface MlServiceStatus {
+  online: boolean;
+  status?: string | null;
+  service?: string | null;
+  samplingFrequencyHz?: number | null;
+  modelsLoaded?: boolean | null;
+  featureCount?: number | null;
+  message?: string | null;
+}
+
 export interface MLAnalysisResult {
   sessionId?: number;
   sampleCount?: number;
@@ -366,6 +377,8 @@ export const api = {
 
     return response.text();
   },
+
+  mlStatus: () => request<MlServiceStatus>("/api/ml/status"),
 
   exercises: () => request<Exercise[]>("/api/exercises"),
 

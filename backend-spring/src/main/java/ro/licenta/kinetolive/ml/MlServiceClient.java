@@ -3,12 +3,14 @@ package ro.licenta.kinetolive.ml;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import ro.licenta.kinetolive.dto.MlAnalysisPayloadDto;
 import ro.licenta.kinetolive.dto.MlAnalysisResponseDto;
+import ro.licenta.kinetolive.dto.MlServiceStatusDto;
 
 import java.io.IOException;
 import java.net.URI;
@@ -26,6 +28,52 @@ public class MlServiceClient {
 
     @Value("${kinetolive.ml-service.base-url}")
     private String mlServiceBaseUrl;
+
+
+    public MlServiceStatusDto getStatus() {
+        try {
+            HttpRequest request = HttpRequest.newBuilder()
+                    .version(HttpClient.Version.HTTP_1_1)
+                    .uri(URI.create(getHealthUrl()))
+                    .timeout(Duration.ofSeconds(5))
+                    .header("Accept", "application/json")
+                    .GET()
+                    .build();
+
+            HttpClient httpClient = HttpClient.newBuilder()
+                    .version(HttpClient.Version.HTTP_1_1)
+                    .connectTimeout(Duration.ofSeconds(3))
+                    .build();
+
+            HttpResponse<String> httpResponse = httpClient.send(
+                    request,
+                    HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8)
+            );
+
+            if (httpResponse.statusCode() < 200 || httpResponse.statusCode() >= 300) {
+                return offlineStatus("ML service returned HTTP " + httpResponse.statusCode() + ".");
+            }
+
+            JsonNode root = objectMapper.readTree(httpResponse.body());
+
+            return new MlServiceStatusDto(
+                    true,
+                    getText(root, "status"),
+                    getText(root, "service"),
+                    getInteger(root, "samplingFrequencyHz"),
+                    getBoolean(root, "modelsLoaded"),
+                    getInteger(root, "featureCount"),
+                    null
+            );
+        } catch (IOException exception) {
+            return offlineStatus("Could not reach the ML service on " + normalizeBaseUrl() + ".");
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            return offlineStatus("The ML service status check was interrupted.");
+        } catch (RuntimeException exception) {
+            return offlineStatus(exception.getMessage());
+        }
+    }
 
     public MlAnalysisResponseDto analyzeSession(MlAnalysisPayloadDto payload) {
         if (payload == null) {
@@ -89,17 +137,64 @@ public class MlServiceClient {
         }
     }
 
-    private String getAnalyzeUrl() {
-        String baseUrl = mlServiceBaseUrl == null ? "http://localhost:8000" : mlServiceBaseUrl.trim();
+    private MlServiceStatusDto offlineStatus(String message) {
+        return new MlServiceStatusDto(
+                false,
+                "offline",
+                "KinetoLive ML Service",
+                null,
+                false,
+                null,
+                message
+        );
+    }
 
-        while (baseUrl.endsWith("/")) {
-            baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
-        }
+    private String getAnalyzeUrl() {
+        String baseUrl = normalizeBaseUrl();
 
         if (baseUrl.endsWith("/api/ml/analyze")) {
             return baseUrl;
         }
 
         return baseUrl + "/api/ml/analyze";
+    }
+
+    private String getHealthUrl() {
+        String baseUrl = normalizeBaseUrl();
+
+        if (baseUrl.endsWith("/api/ml/analyze")) {
+            return baseUrl.replace("/api/ml/analyze", "/api/ml/health");
+        }
+
+        if (baseUrl.endsWith("/api/ml/health")) {
+            return baseUrl;
+        }
+
+        return baseUrl + "/api/ml/health";
+    }
+
+    private String normalizeBaseUrl() {
+        String baseUrl = mlServiceBaseUrl == null ? "http://localhost:8000" : mlServiceBaseUrl.trim();
+
+        while (baseUrl.endsWith("/")) {
+            baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
+        }
+
+        return baseUrl;
+    }
+
+    private String getText(JsonNode root, String fieldName) {
+        JsonNode value = root.get(fieldName);
+        return value == null || value.isNull() ? null : value.asText();
+    }
+
+    private Integer getInteger(JsonNode root, String fieldName) {
+        JsonNode value = root.get(fieldName);
+        return value == null || value.isNull() ? null : value.asInt();
+    }
+
+    private Boolean getBoolean(JsonNode root, String fieldName) {
+        JsonNode value = root.get(fieldName);
+        return value == null || value.isNull() ? null : value.asBoolean();
     }
 }
