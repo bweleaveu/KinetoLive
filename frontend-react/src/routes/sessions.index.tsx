@@ -27,7 +27,7 @@ import {
 import { getDoctorSettings } from "@/lib/doctorSettings";
 
 export const Route = createFileRoute("/sessions/")({
-  head: () => ({ meta: [{ title: "Sessions — KinetoLive" }] }),
+  head: () => ({ meta: [{ title: "KinetoLive" }] }),
   component: SessionsPage,
 });
 
@@ -76,6 +76,11 @@ const SESSIONS_TEXT = {
     tableConfidence: "Incredere",
     tableActions: "Actiuni",
     exercise: "Exercitiul",
+    locale: "ro-RO",
+    htmlLanguage: "ro",
+    browserTitle: "Istoric sesiuni — KinetoLive",
+    automaticDetection: "Detectie automata",
+    automaticDetectionShort: "Detectie auto",
     view: "Vezi",
     deleteSession: "Sterge",
     deletingSession: "Se sterge...",
@@ -149,6 +154,11 @@ const SESSIONS_TEXT = {
     tableConfidence: "Confidence",
     tableActions: "Actions",
     exercise: "Exercise",
+    locale: "en-US",
+    htmlLanguage: "en",
+    browserTitle: "Sessions history — KinetoLive",
+    automaticDetection: "Automatic detection",
+    automaticDetectionShort: "Auto detection",
     view: "View",
     deleteSession: "Delete",
     deletingSession: "Deleting...",
@@ -187,6 +197,10 @@ function SessionsPage() {
   const { language } = useAppLanguage();
   const text = SESSIONS_TEXT[language];
   const { selectedPatientId, loading: patientLoading } = useSelectedPatient();
+
+  useEffect(() => {
+    document.title = text.browserTitle;
+  }, [text.browserTitle]);
 
   const [sessions, setSessions] = useState<TherapySession[]>([]);
   const [loading, setLoading] = useState(true);
@@ -481,14 +495,14 @@ function SessionsPage() {
                         <span className="font-medium text-foreground/80">
                           {text.tableStarted}:
                         </span>{" "}
-                        {formatDateTime(session.startedAt)}
+                        {formatDateTime(session.startedAt, text.locale)}
                       </span>
                       <span className="hidden h-1 w-1 rounded-full bg-muted-foreground/50 sm:block" />
                       <span className="text-xs text-muted-foreground">
                         <span className="font-medium text-foreground/80">
                           {text.tableEnded}:
                         </span>{" "}
-                        {formatDateTime(session.endedAt)}
+                        {formatDateTime(session.endedAt, text.locale)}
                       </span>
                     </div>
                   </div>
@@ -687,13 +701,13 @@ function round(value: number, decimals = 0): number {
   return Math.round(value * factor) / factor;
 }
 
-function formatDateTime(value?: string | null): string {
-  // Formateaza data si ora unei sesiuni
+function formatDateTime(value?: string | null, locale = "ro-RO"): string {
+  // Formateaza data si ora unei sesiuni in limba selectata
   if (!value) {
     return "—";
   }
 
-  return new Date(value).toLocaleString();
+  return new Date(value).toLocaleString(locale);
 }
 
 function formatStatus(
@@ -715,11 +729,7 @@ function formatExerciseLabel(
   }
 
   if (exerciseCode === 0) {
-    if (text.exportReport === "Export report") {
-      return short ? "Auto detection" : "Automatic detection";
-    }
-
-    return short ? "Detectie auto" : "Detectie automata";
+    return short ? text.automaticDetectionShort : text.automaticDetection;
   }
 
   return `${text.exercise} ${exerciseCode}`;
@@ -777,7 +787,7 @@ function buildSessionReportHtml(
   const quality = session.qualityName
     ? formatQualityName(session.qualityName, text.qualityValues)
     : "—";
-  const htmlLanguage = text.exportReport === "Export report" ? "en" : "ro";
+  const htmlLanguage = text.htmlLanguage;
 
   return `<!doctype html>
 <html lang="${htmlLanguage}">
@@ -902,8 +912,8 @@ function buildSessionReportHtml(
         ${reportField(text.tableSession, `#${session.id}`)}
         ${reportField(text.patient, session.patientName ?? `${text.patient} ${session.patientId}`)}
         ${reportField(text.tableStatus, formatStatus(session.status, text.statusValues))}
-        ${reportField(text.tableStarted, formatDateTime(session.startedAt))}
-        ${reportField(text.tableEnded, formatDateTime(session.endedAt))}
+        ${reportField(text.tableStarted, formatDateTime(session.startedAt, text.locale))}
+        ${reportField(text.tableEnded, formatDateTime(session.endedAt, text.locale))}
       </article>
 
       <article class="card">

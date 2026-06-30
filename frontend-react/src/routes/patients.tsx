@@ -1,6 +1,6 @@
 // Pagina pentru selectarea si administrarea pacientilor doctorului autentificat
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
   Calendar,
   CheckCircle2,
@@ -24,13 +24,14 @@ import {
 import { getDoctorSettings } from "@/lib/doctorSettings";
 
 export const Route = createFileRoute("/patients")({
-  head: () => ({ meta: [{ title: "Patients — KinetoLive" }] }),
+  head: () => ({ meta: [{ title: "KinetoLive" }] }),
   component: PatientsPage,
 });
 
 const PATIENTS_TEXT = {
   ro: {
     pageTitle: "Pacienti",
+    browserTitle: "Pacienti — KinetoLive",
     pageDescription:
       "Alege pacientul activ pentru Dashboard, Sesiuni si Sesiune live. Doctorul poate adauga pacienti noi si ii poate sterge pe cei existenti.",
     addPatient: "Adauga pacient",
@@ -86,6 +87,7 @@ const PATIENTS_TEXT = {
   },
   en: {
     pageTitle: "Patients",
+    browserTitle: "Patients — KinetoLive",
     pageDescription:
       "Choose the active patient for Dashboard, Sessions and Live Session. The doctor can add new patients and delete existing ones.",
     addPatient: "Add patient",
@@ -152,6 +154,10 @@ const emptyForm = {
 function PatientsPage() {
   const { language } = useAppLanguage();
   const text = PATIENTS_TEXT[language];
+
+  useEffect(() => {
+    document.title = text.browserTitle;
+  }, [text.browserTitle]);
 
   const {
     patients,

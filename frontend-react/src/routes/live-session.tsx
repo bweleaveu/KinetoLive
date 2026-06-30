@@ -46,7 +46,7 @@ import {
 } from "@/lib/doctorSettings";
 
 export const Route = createFileRoute("/live-session")({
-  head: () => ({ meta: [{ title: "Live Session — KinetoLive" }] }),
+  head: () => ({ meta: [{ title: "KinetoLive" }] }),
   component: LiveSessionPage,
 });
 
@@ -59,6 +59,7 @@ const SELECTED_EXERCISE_KEY = "kinetolive:selectedExercise";
 const LIVE_SESSION_TEXT = {
   ro: {
     pageTitle: "Sesiune live",
+    browserTitle: "Sesiune live — KinetoLive",
     pageDescription:
       "Porneste o sesiune de recuperare, transmite esantioane BNO055 prin WebSocket si analizeaza semnalul complet al miscarii.",
     simulatorNotice:
@@ -234,6 +235,7 @@ const LIVE_SESSION_TEXT = {
   },
   en: {
     pageTitle: "Live Session",
+    browserTitle: "Live session — KinetoLive",
     pageDescription:
       "Start a rehabilitation session, stream BNO055 samples through WebSocket and analyze the complete movement signal.",
     simulatorNotice:
@@ -415,6 +417,10 @@ type LiveSessionText = (typeof LIVE_SESSION_TEXT)[keyof typeof LIVE_SESSION_TEXT
 function LiveSessionPage() {
   const { language } = useAppLanguage();
   const text = LIVE_SESSION_TEXT[language];
+
+  useEffect(() => {
+    document.title = text.browserTitle;
+  }, [text.browserTitle]);
   const {
     selectedPatient,
     selectedPatientId,
@@ -1229,6 +1235,10 @@ function LiveControlsPanel({
   const { language } = useAppLanguage();
   const text = LIVE_SESSION_TEXT[language];
 
+  useEffect(() => {
+    document.title = text.browserTitle;
+  }, [text.browserTitle]);
+
   return (
     <aside className="xl:sticky xl:top-24 xl:max-h-[calc(100vh-7rem)] xl:self-start xl:overflow-y-auto xl:pr-1">
       <div className="rounded-2xl border border-border bg-background p-4 shadow-sm">
@@ -1379,6 +1389,10 @@ function SourceBadge({ simulating, hasLiveData }: { simulating: boolean; hasLive
   const { language } = useAppLanguage();
   const text = LIVE_SESSION_TEXT[language];
 
+  useEffect(() => {
+    document.title = text.browserTitle;
+  }, [text.browserTitle]);
+
   if (simulating) {
     return (
       <span className="inline-flex items-center gap-1 rounded-full border border-cyan/30 bg-[color:var(--cyan)]/10 px-2.5 py-1 text-xs font-semibold text-[color:var(--cyan)]">
@@ -1400,6 +1414,10 @@ function LiveValuesStrip({ sample }: { sample: SensorSample | null }) {
   // Afiseaza ultimele valori live langa graficul principal
   const { language } = useAppLanguage();
   const text = LIVE_SESSION_TEXT[language];
+
+  useEffect(() => {
+    document.title = text.browserTitle;
+  }, [text.browserTitle]);
 
   if (!sample) {
     return (
@@ -1483,6 +1501,10 @@ function ConnectionBadge({ status }: { status: string }) {
   // Afiseaza starea conexiunii live
   const { language } = useAppLanguage();
   const text = LIVE_SESSION_TEXT[language];
+
+  useEffect(() => {
+    document.title = text.browserTitle;
+  }, [text.browserTitle]);
   const isOpen = status === "open";
 
   return (
@@ -1964,6 +1986,10 @@ function LiveChart({
   // Afiseaza grafic live sau stare goala
   const { language } = useAppLanguage();
   const text = LIVE_SESSION_TEXT[language];
+
+  useEffect(() => {
+    document.title = text.browserTitle;
+  }, [text.browserTitle]);
   const heightClass = size === "large" ? "h-[205px]" : "h-[165px]";
 
   if (empty) {

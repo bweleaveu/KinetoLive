@@ -28,13 +28,14 @@ import {
 } from "@/lib/doctorSettings";
 
 export const Route = createFileRoute("/settings")({
-  head: () => ({ meta: [{ title: "Profile & settings — KinetoLive" }] }),
+  head: () => ({ meta: [{ title: "KinetoLive" }] }),
   component: SettingsPage,
 });
 
 const SETTINGS_TEXT = {
   ro: {
     title: "Profil și setări",
+    browserTitle: "Profil si setari — KinetoLive",
     subtitle:
       "Datele contului doctorului si preferintele folosite in fluxul KinetoLive.",
     doctorProfile: "Profil doctor",
@@ -88,6 +89,7 @@ const SETTINGS_TEXT = {
   },
   en: {
     title: "Profile & settings",
+    browserTitle: "Profile & settings — KinetoLive",
     subtitle:
       "Doctor account data and preferences used in the KinetoLive workflow.",
     doctorProfile: "Doctor profile",
@@ -144,6 +146,10 @@ function SettingsPage() {
   const { language } = useAppLanguage();
   const { doctor } = useAuth();
   const text = SETTINGS_TEXT[language];
+
+  useEffect(() => {
+    document.title = text.browserTitle;
+  }, [text.browserTitle]);
   const [settings, setSettings] = useState<DoctorSettings>(() => getDoctorSettings());
 
   useEffect(() => {

@@ -34,7 +34,7 @@ import {
 } from "@/lib/api";
 
 export const Route = createFileRoute("/sessions/$sessionId")({
-  head: () => ({ meta: [{ title: "Session Details — KinetoLive" }] }),
+  head: () => ({ meta: [{ title: "KinetoLive" }] }),
   component: SessionDetailsPage,
 });
 
@@ -58,7 +58,12 @@ const SESSION_DETAILS_TEXT = {
     pageDescription:
       "Analiza prin invatare automata detaliata, rezultate pe repetari si calitatea executiei.",
     intendedExercise: "Exercitiu intentionat",
-    selectedByPatient: "Selectat de pacient",
+    selectedByDoctor: "Selectat de doctor",
+    locale: "ro-RO",
+    htmlLanguage: "ro",
+    pageTitle: "Detalii sesiune — KinetoLive",
+    automaticDetection: "Detectie automata",
+    automaticDetectionShort: "Detectie auto",
     detectedExercise: "Exercitiu detectat",
     mlResult: "Rezultat analiza prin invatare automata",
     executionQuality: "Calitatea executiei",
@@ -110,7 +115,7 @@ const SESSION_DETAILS_TEXT = {
       "Small amplitude": "Amplitudine mica",
     },
     statusValues: {
-      STARTED: "Pornita",
+      STARTED: "Nefinalizata",
       COMPLETED: "Finalizata",
       FAILED: "Esuata",
     },
@@ -132,7 +137,12 @@ const SESSION_DETAILS_TEXT = {
     pageDescription:
       "Detailed Machine learning analysis, repetition results and execution quality.",
     intendedExercise: "Intended exercise",
-    selectedByPatient: "Selected by patient",
+    selectedByDoctor: "Selected by doctor",
+    locale: "en-US",
+    htmlLanguage: "en",
+    pageTitle: "Session details — KinetoLive",
+    automaticDetection: "Automatic detection",
+    automaticDetectionShort: "Auto detection",
     detectedExercise: "Detected exercise",
     mlResult: "Machine learning result",
     executionQuality: "Execution quality",
@@ -184,7 +194,7 @@ const SESSION_DETAILS_TEXT = {
       "Small amplitude": "Small amplitude",
     },
     statusValues: {
-      STARTED: "Started",
+      STARTED: "Unfinished",
       COMPLETED: "Completed",
       FAILED: "Failed",
     },
@@ -195,6 +205,10 @@ function SessionDetailsPage() {
   const { language } = useAppLanguage();
   const text = SESSION_DETAILS_TEXT[language];
   const { sessionId } = Route.useParams();
+
+  useEffect(() => {
+    document.title = text.pageTitle;
+  }, [text.pageTitle]);
 
   const numericSessionId = Number(sessionId);
 
@@ -333,7 +347,7 @@ function SessionDetailsPage() {
         <StatCard
           label={text.intendedExercise}
           value={formatExerciseLabel(session.intendedExerciseCode, text, false)}
-          hint={session.intendedExerciseName ?? text.selectedByPatient}
+          hint={session.intendedExerciseName ?? text.selectedByDoctor}
           icon={Dumbbell}
           tone="primary"
         />
@@ -400,8 +414,8 @@ function SessionDetailsPage() {
 
         <StatCard
           label={text.startedAt}
-          value={formatShortDate(session.startedAt)}
-          hint={formatTime(session.startedAt)}
+          value={formatShortDate(session.startedAt, text.locale)}
+          hint={formatTime(session.startedAt, text.locale)}
           icon={Timer}
           tone="primary"
         />
@@ -411,8 +425,8 @@ function SessionDetailsPage() {
         <div className="grid gap-4 md:grid-cols-2">
           <InfoRow label={text.patient} value={session.patientName ?? `${text.patient} ${session.patientId}`} />
           <InfoRow label={text.status} value={formatStatus(session.status, text.statusValues)} />
-          <InfoRow label={text.startedAt} value={formatDateTime(session.startedAt)} />
-          <InfoRow label={text.endedAt} value={formatDateTime(session.endedAt)} />
+          <InfoRow label={text.startedAt} value={formatDateTime(session.startedAt, text.locale)} />
+          <InfoRow label={text.endedAt} value={formatDateTime(session.endedAt, text.locale)} />
           <InfoRow label={text.sampleCount} value={String(session.sampleCount ?? 0)} />
           <InfoRow
             label={text.mlMessage}
@@ -706,31 +720,31 @@ function round(value: number, decimals = 0): number {
   return Math.round(value * factor) / factor;
 }
 
-function formatDateTime(value?: string | null): string {
-  // Formateaza data completa
+function formatDateTime(value?: string | null, locale = "ro-RO"): string {
+  // Formateaza data completa in limba selectata
   if (!value) {
     return "—";
   }
 
-  return new Date(value).toLocaleString();
+  return new Date(value).toLocaleString(locale);
 }
 
-function formatShortDate(value?: string | null): string {
-  // Formateaza doar data scurta
+function formatShortDate(value?: string | null, locale = "ro-RO"): string {
+  // Formateaza doar data scurta in limba selectata
   if (!value) {
     return "—";
   }
 
-  return new Date(value).toLocaleDateString();
+  return new Date(value).toLocaleDateString(locale);
 }
 
-function formatTime(value?: string | null): string {
-  // Formateaza doar ora
+function formatTime(value?: string | null, locale = "ro-RO"): string {
+  // Formateaza doar ora in limba selectata
   if (!value) {
     return "—";
   }
 
-  return new Date(value).toLocaleTimeString();
+  return new Date(value).toLocaleTimeString(locale);
 }
 
 function formatStatus(
@@ -752,13 +766,7 @@ function formatExerciseLabel(
   }
 
   if (exerciseCode === 0) {
-    return short
-      ? text.exportReport === "Export report"
-        ? "Auto detection"
-        : "Detectie auto"
-      : text.exportReport === "Export report"
-        ? "Automatic detection"
-        : "Detectie automata";
+    return short ? text.automaticDetectionShort : text.automaticDetection;
   }
 
   return `${text.exercise} ${exerciseCode}`;
@@ -818,7 +826,7 @@ function buildSessionReportHtml(
     : "—";
 
   return `<!doctype html>
-<html lang="${text.exportReport === "Export report" ? "en" : "ro"}">
+<html lang="${text.htmlLanguage}">
 <head>
   <meta charset="utf-8" />
   <title>${escapeHtml(text.reportTitle(session.id))}</title>
@@ -931,7 +939,7 @@ function buildSessionReportHtml(
   <main class="page">
     <section class="header">
       <h1>${escapeHtml(text.reportTitle(session.id))}</h1>
-      <p>KinetoLive • ${escapeHtml(text.reportGeneratedAt)} ${escapeHtml(formatDateTime(new Date().toISOString()))}</p>
+      <p>KinetoLive • ${escapeHtml(text.reportGeneratedAt)} ${escapeHtml(formatDateTime(new Date().toISOString(), text.locale))}</p>
     </section>
 
     <section class="grid">
@@ -939,8 +947,8 @@ function buildSessionReportHtml(
         <h2>${escapeHtml(text.reportPatientSection)}</h2>
         ${reportField(text.patient, session.patientName ?? `${text.patient} ${session.patientId}`)}
         ${reportField(text.status, formatStatus(session.status, text.statusValues))}
-        ${reportField(text.startedAt, formatDateTime(session.startedAt))}
-        ${reportField(text.endedAt, formatDateTime(session.endedAt))}
+        ${reportField(text.startedAt, formatDateTime(session.startedAt, text.locale))}
+        ${reportField(text.endedAt, formatDateTime(session.endedAt, text.locale))}
       </article>
 
       <article class="card">

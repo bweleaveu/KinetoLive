@@ -21,7 +21,7 @@ import { useAppLanguage } from "@/hooks/useAppLanguage";
 import { api, EXERCISE_FALLBACK, type Exercise } from "@/lib/api";
 
 export const Route = createFileRoute("/exercises")({
-  head: () => ({ meta: [{ title: "Exercises — KinetoLive" }] }),
+  head: () => ({ meta: [{ title: "KinetoLive" }] }),
   component: ExercisesPage,
 });
 
@@ -31,6 +31,7 @@ const SELECTED_EXERCISE_KEY = "kinetolive:selectedExercise";
 const EXERCISES_TEXT = {
   ro: {
     pageTitle: "Exercitii de recuperare",
+    browserTitle: "Exercitii — KinetoLive",
     pageDescription:
       "Exercitii folosite de KinetoLive pentru monitorizare live BNO055, segmentarea repetarilor si analiza calitatii executiei prin invatare automata.",
     refresh: "Reincarca",
@@ -70,6 +71,7 @@ const EXERCISES_TEXT = {
   },
   en: {
     pageTitle: "Rehabilitation Exercises",
+    browserTitle: "Exercises — KinetoLive",
     pageDescription:
       "Exercises used by KinetoLive for live BNO055 monitoring, repetition segmentation and machine learning-based execution quality analysis.",
     refresh: "Refresh",
@@ -116,6 +118,10 @@ function ExercisesPage() {
   const { language } = useAppLanguage();
 
   const text = EXERCISES_TEXT[language];
+
+  useEffect(() => {
+    document.title = text.browserTitle;
+  }, [text.browserTitle]);
 
   const [exercises, setExercises] = useState<Exercise[]>(EXERCISE_FALLBACK);
   const [loading, setLoading] = useState(true);
