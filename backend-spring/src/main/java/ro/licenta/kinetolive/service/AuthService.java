@@ -11,9 +11,12 @@ import ro.licenta.kinetolive.dto.auth.AuthResponse;
 import ro.licenta.kinetolive.dto.auth.DoctorResponse;
 import ro.licenta.kinetolive.dto.auth.LoginRequest;
 import ro.licenta.kinetolive.dto.auth.RegisterRequest;
+import ro.licenta.kinetolive.dto.auth.UpdateDoctorProfileRequest;
 import ro.licenta.kinetolive.entity.AppUser;
+import ro.licenta.kinetolive.entity.DoctorProfile;
 import ro.licenta.kinetolive.entity.enums.UserRole;
 import ro.licenta.kinetolive.repository.AppUserRepository;
+import ro.licenta.kinetolive.repository.DoctorProfileRepository;
 import ro.licenta.kinetolive.security.JwtService;
 
 @Service
@@ -21,6 +24,7 @@ import ro.licenta.kinetolive.security.JwtService;
 public class AuthService {
 
     private final AppUserRepository appUserRepository;
+    private final DoctorProfileRepository doctorProfileRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
 
@@ -44,9 +48,16 @@ public class AuthService {
                 .build();
 
         AppUser savedDoctor = appUserRepository.save(doctor);
+
+        DoctorProfile profile = doctorProfileRepository.save(
+                DoctorProfile.builder()
+                        .user(savedDoctor)
+                        .build()
+        );
+
         String token = jwtService.generateToken(savedDoctor);
 
-        return new AuthResponse(token, mapDoctor(savedDoctor));
+        return new AuthResponse(token, mapDoctor(savedDoctor, profile));
     }
 
     public AuthResponse login(LoginRequest request) {
@@ -55,41 +66,108 @@ public class AuthService {
         AppUser doctor = appUserRepository.findByEmail(email)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Email sau parola incorecta."));
 
-        if (!doctor.isActive() || doctor.getRole() != UserRole.DOCTOR) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Doar doctorii pot accesa aplicatia.");
-        }
+        validateDoctorAccount(doctor);
 
         if (!passwordEncoder.matches(request.password(), doctor.getPasswordHash())) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Email sau parola incorecta.");
         }
 
+        DoctorProfile profile = getOrCreateDoctorProfile(doctor);
         String token = jwtService.generateToken(doctor);
 
-        return new AuthResponse(token, mapDoctor(doctor));
+        return new AuthResponse(token, mapDoctor(doctor, profile));
     }
 
     public DoctorResponse getCurrentDoctor(String email) {
+        AppUser doctor = getAuthenticatedDoctor(email);
+        DoctorProfile profile = getOrCreateDoctorProfile(doctor);
+
+        return mapDoctor(doctor, profile);
+    }
+
+    @Transactional
+    public AuthResponse updateCurrentDoctor(String currentEmail, UpdateDoctorProfileRequest request) {
+        AppUser doctor = getAuthenticatedDoctor(currentEmail);
+        DoctorProfile profile = getOrCreateDoctorProfile(doctor);
+
+        String normalizedEmail = normalizeEmail(request.email());
+
+        if (!doctor.getEmail().equals(normalizedEmail) && appUserRepository.existsByEmail(normalizedEmail)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Exista deja un cont cu acest email.");
+        }
+
+        doctor.setFirstName(normalizeRequiredText(request.firstName()));
+        doctor.setLastName(normalizeRequiredText(request.lastName()));
+        doctor.setEmail(normalizedEmail);
+
+        profile.setSpecialization(normalizeOptionalText(request.specialization()));
+        profile.setClinicName(normalizeOptionalText(request.clinicName()));
+        profile.setPhoneNumber(normalizeOptionalText(request.phoneNumber()));
+
+        AppUser savedDoctor = appUserRepository.save(doctor);
+        DoctorProfile savedProfile = doctorProfileRepository.save(profile);
+        String token = jwtService.generateToken(savedDoctor);
+
+        return new AuthResponse(token, mapDoctor(savedDoctor, savedProfile));
+    }
+
+    private AppUser getAuthenticatedDoctor(String email) {
         AppUser doctor = appUserRepository.findByEmail(normalizeEmail(email))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Doctorul autentificat nu a fost gasit."));
 
+        validateDoctorAccount(doctor);
+
+        return doctor;
+    }
+
+    private void validateDoctorAccount(AppUser doctor) {
         if (!doctor.isActive() || doctor.getRole() != UserRole.DOCTOR) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Doar doctorii pot accesa aplicatia.");
         }
-
-        return mapDoctor(doctor);
     }
 
-    private DoctorResponse mapDoctor(AppUser doctor) {
+    private DoctorProfile getOrCreateDoctorProfile(AppUser doctor) {
+        return doctorProfileRepository.findByUser(doctor)
+                .orElseGet(() -> doctorProfileRepository.save(
+                        DoctorProfile.builder()
+                                .user(doctor)
+                                .build()
+                ));
+    }
+
+    private DoctorResponse mapDoctor(AppUser doctor, DoctorProfile profile) {
         return new DoctorResponse(
                 doctor.getId(),
                 doctor.getEmail(),
+                doctor.getFirstName(),
+                doctor.getLastName(),
                 doctor.getFirstName() + " " + doctor.getLastName(),
-                doctor.getRole().name()
+                doctor.getRole().name(),
+                doctor.isActive(),
+                doctor.getCreatedAt(),
+                profile.getId(),
+                profile.getSpecialization(),
+                profile.getClinicName(),
+                profile.getPhoneNumber()
         );
     }
 
     private String normalizeEmail(String email) {
         return email.trim().toLowerCase();
+    }
+
+    private String normalizeRequiredText(String value) {
+        return value.trim().replaceAll("\\s+", " ");
+    }
+
+    private String normalizeOptionalText(String value) {
+        if (value == null) {
+            return null;
+        }
+
+        String normalizedValue = value.trim().replaceAll("\\s+", " ");
+
+        return normalizedValue.isBlank() ? null : normalizedValue;
     }
 
     private String[] splitFullName(String fullName) {

@@ -1,6 +1,6 @@
 // Pagina pentru profilul doctorului si setarile aplicatiei
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import {
   Activity,
   CheckCircle2,
@@ -8,7 +8,6 @@ import {
   Eye,
   Gauge,
   Save,
-  Settings,
   ShieldCheck,
   SlidersHorizontal,
   UserRound,
@@ -26,28 +25,44 @@ import {
   type DoctorSettings,
   type PatientSelectionPreference,
 } from "@/lib/doctorSettings";
+import type { DoctorProfilePayload } from "@/lib/auth";
 
 export const Route = createFileRoute("/settings")({
-  head: () => ({ meta: [{ title: "KinetoLive" }] }),
+  head: () => ({ meta: [{ title: "Profile & settings — KinetoLive" }] }),
   component: SettingsPage,
 });
 
 const SETTINGS_TEXT = {
   ro: {
-    title: "Profil și setări",
-    browserTitle: "Profil si setari — KinetoLive",
+    title: "Profil si setari",
     subtitle:
       "Datele contului doctorului si preferintele folosite in fluxul KinetoLive.",
     doctorProfile: "Profil doctor",
-    doctorProfileSubtitle: "Informatii despre contul autentificat",
-    fullName: "Nume complet (prenume si nume de familie)",
+    doctorProfileSubtitle:
+      "Informatii salvate in baza de date pentru doctorul autentificat.",
+    firstName: "Prenume",
+    lastName: "Nume de familie",
+    fullName: "Nume complet",
+    fullNameHint: "prenume si nume de familie",
     email: "Email",
     role: "Rol",
     roleDoctor: "Doctor",
     accountStatus: "Status cont",
+    active: "Activ",
+    inactive: "Inactiv",
+    createdAt: "Data creare cont",
+    profileId: "ID profil doctor",
+    specialization: "Specializare",
+    clinicName: "Clinica",
+    phoneNumber: "Numar de telefon",
+    notCompleted: "—",
     authenticated: "Autentificat",
     localPreferences: "Preferinte locale",
     savedInBrowser: "Salvate in browser",
+    saveProfile: "Salveaza profilul",
+    savingProfile: "Se salveaza...",
+    profileSaved: "Profilul doctorului a fost actualizat.",
+    profileSaveError: "Profilul doctorului nu a putut fi actualizat.",
     livePreferences: "Preferinte sesiune live",
     livePreferencesSubtitle:
       "Setari pregatite pentru modul de analiza si alegerea exercitiului.",
@@ -89,19 +104,34 @@ const SETTINGS_TEXT = {
   },
   en: {
     title: "Profile & settings",
-    browserTitle: "Profile & settings — KinetoLive",
     subtitle:
       "Doctor account data and preferences used in the KinetoLive workflow.",
     doctorProfile: "Doctor profile",
-    doctorProfileSubtitle: "Information about the authenticated account",
-    fullName: "Full name (first name and last name)",
+    doctorProfileSubtitle:
+      "Information stored in the database for the authenticated doctor.",
+    firstName: "First name",
+    lastName: "Last name",
+    fullName: "Full name",
+    fullNameHint: "first name and last name",
     email: "Email",
     role: "Role",
     roleDoctor: "Doctor",
     accountStatus: "Account status",
+    active: "Active",
+    inactive: "Inactive",
+    createdAt: "Account created at",
+    profileId: "Doctor profile ID",
+    specialization: "Specialization",
+    clinicName: "Clinic",
+    phoneNumber: "Phone number",
+    notCompleted: "—",
     authenticated: "Authenticated",
     localPreferences: "Local preferences",
     savedInBrowser: "Saved in browser",
+    saveProfile: "Save profile",
+    savingProfile: "Saving...",
+    profileSaved: "Doctor profile was updated.",
+    profileSaveError: "Doctor profile could not be updated.",
     livePreferences: "Live session preferences",
     livePreferencesSubtitle:
       "Settings prepared for the analysis mode and default exercise selection.",
@@ -144,17 +174,41 @@ const SETTINGS_TEXT = {
 
 function SettingsPage() {
   const { language } = useAppLanguage();
-  const { doctor } = useAuth();
+  const { doctor, updateDoctorProfile } = useAuth();
   const text = SETTINGS_TEXT[language];
-
-  useEffect(() => {
-    document.title = text.browserTitle;
-  }, [text.browserTitle]);
   const [settings, setSettings] = useState<DoctorSettings>(() => getDoctorSettings());
+  const [profileForm, setProfileForm] = useState<DoctorProfilePayload>(() => ({
+    firstName: "",
+    lastName: "",
+    email: "",
+    specialization: "",
+    clinicName: "",
+    phoneNumber: "",
+  }));
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [profileMessage, setProfileMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
 
   useEffect(() => {
     saveDoctorSettings(settings);
   }, [settings]);
+
+  useEffect(() => {
+    if (!doctor) {
+      return;
+    }
+
+    setProfileForm({
+      firstName: doctor.firstName ?? getFirstNameFromFullName(doctor.fullName),
+      lastName: doctor.lastName ?? getLastNameFromFullName(doctor.fullName),
+      email: doctor.email ?? "",
+      specialization: doctor.specialization ?? "",
+      clinicName: doctor.clinicName ?? "",
+      phoneNumber: doctor.phoneNumber ?? "",
+    });
+  }, [doctor]);
 
   const exerciseOptions = useMemo(
     () =>
@@ -178,9 +232,43 @@ function SettingsPage() {
     }));
   }
 
+  function updateProfileForm<K extends keyof DoctorProfilePayload>(
+    key: K,
+    value: DoctorProfilePayload[K],
+  ) {
+    setProfileForm((currentProfileForm) => ({
+      ...currentProfileForm,
+      [key]: value,
+    }));
+  }
+
   function resetSettings() {
     setSettings(DEFAULT_DOCTOR_SETTINGS);
   }
+
+  async function handleProfileSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setIsSavingProfile(true);
+    setProfileMessage(null);
+
+    try {
+      await updateDoctorProfile({
+        firstName: profileForm.firstName.trim(),
+        lastName: profileForm.lastName.trim(),
+        email: profileForm.email.trim(),
+        specialization: emptyToNull(profileForm.specialization),
+        clinicName: emptyToNull(profileForm.clinicName),
+        phoneNumber: emptyToNull(profileForm.phoneNumber),
+      });
+      setProfileMessage({ type: "success", text: text.profileSaved });
+    } catch {
+      setProfileMessage({ type: "error", text: text.profileSaveError });
+    } finally {
+      setIsSavingProfile(false);
+    }
+  }
+
+  const formattedCreatedAt = formatDateTime(doctor?.createdAt, language);
 
   return (
     <div className="space-y-6">
@@ -196,10 +284,10 @@ function SettingsPage() {
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <StatCard
           label={text.accountStatus}
-          value={text.authenticated}
+          value={doctor?.active === false ? text.inactive : text.active}
           hint={doctor?.email}
           icon={ShieldCheck}
-          tone="mint"
+          tone={doctor?.active === false ? "amber" : "mint"}
         />
         <StatCard
           label={text.role}
@@ -219,16 +307,87 @@ function SettingsPage() {
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
         <SectionCard title={text.doctorProfile} subtitle={text.doctorProfileSubtitle}>
-          <div className="space-y-3">
-            <ProfileRow label={text.fullName} value={doctor?.fullName || text.roleDoctor} />
-            <ProfileRow label={text.email} value={doctor?.email || "-"} />
-            <ProfileRow label={text.role} value={doctor?.role || text.roleDoctor} />
-          </div>
+          <form className="space-y-5" onSubmit={handleProfileSubmit}>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <ProfileInput
+                label={text.firstName}
+                value={profileForm.firstName}
+                onChange={(value) => updateProfileForm("firstName", value)}
+                required
+              />
+              <ProfileInput
+                label={text.lastName}
+                value={profileForm.lastName}
+                onChange={(value) => updateProfileForm("lastName", value)}
+                required
+              />
+            </div>
+
+            <ProfileInput
+              label={text.email}
+              value={profileForm.email}
+              onChange={(value) => updateProfileForm("email", value)}
+              type="email"
+              required
+            />
+
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <ProfileInput
+                label={text.specialization}
+                value={profileForm.specialization ?? ""}
+                onChange={(value) => updateProfileForm("specialization", value)}
+              />
+              <ProfileInput
+                label={text.clinicName}
+                value={profileForm.clinicName ?? ""}
+                onChange={(value) => updateProfileForm("clinicName", value)}
+              />
+            </div>
+
+            <ProfileInput
+              label={text.phoneNumber}
+              value={profileForm.phoneNumber ?? ""}
+              onChange={(value) => updateProfileForm("phoneNumber", value)}
+              type="tel"
+            />
+
+            <div className="grid grid-cols-1 gap-3 pt-2 md:grid-cols-2">
+              <ProfileRow
+                label={text.fullName}
+                hint={text.fullNameHint}
+                value={doctor?.fullName || text.notCompleted}
+              />
+              <ProfileRow label={text.profileId} value={doctor?.doctorProfileId ?? text.notCompleted} />
+              <ProfileRow label={text.role} value={doctor?.role || text.roleDoctor} />
+              <ProfileRow label={text.createdAt} value={formattedCreatedAt || text.notCompleted} />
+            </div>
+
+            {profileMessage ? (
+              <div
+                className={`rounded-2xl border px-4 py-3 text-sm font-medium ${
+                  profileMessage.type === "success"
+                    ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
+                    : "border-rose-500/40 bg-rose-500/10 text-rose-300"
+                }`}
+              >
+                {profileMessage.text}
+              </div>
+            ) : null}
+
+            <button
+              type="submit"
+              disabled={isSavingProfile}
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-primary px-5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <Save className="h-4 w-4" />
+              {isSavingProfile ? text.savingProfile : text.saveProfile}
+            </button>
+          </form>
         </SectionCard>
 
         <SectionCard title={text.livePreferences} subtitle={text.livePreferencesSubtitle}>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <label className="space-y-2 text-sm">
+            <label className="block space-y-2 text-sm">
               <span className="font-medium text-foreground">{text.defaultExercise}</span>
               <select
                 value={settings.defaultExerciseCode}
@@ -245,7 +404,7 @@ function SettingsPage() {
               </select>
             </label>
 
-            <label className="space-y-2 text-sm">
+            <label className="block space-y-2 text-sm">
               <span className="font-medium text-foreground">
                 {text.defaultAnalysisAction}
               </span>
@@ -383,13 +542,53 @@ function SettingsPage() {
   );
 }
 
-function ProfileRow({ label, value }: { label: string; value: ReactNode }) {
+function ProfileInput({
+                        label,
+                        value,
+                        onChange,
+                        type = "text",
+                        required = false,
+                      }: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  type?: string;
+  required?: boolean;
+}) {
   return (
-    <div className="rounded-2xl border border-border bg-background/70 px-4 py-3">
-      <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+    <label className="block space-y-2 text-sm">
+      <span className="font-medium text-foreground">{label}</span>
+      <input
+        type={type}
+        value={value}
+        required={required}
+        onChange={(event) => onChange(event.target.value)}
+        className="h-11 w-full rounded-2xl border border-border bg-background px-3 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary"
+      />
+    </label>
+  );
+}
+
+function ProfileRow({
+                      label,
+                      value,
+                      hint,
+                    }: {
+  label: string;
+  value: ReactNode;
+  hint?: string;
+}) {
+  return (
+    <div className="flex min-h-[86px] flex-col justify-center rounded-2xl border border-border bg-background/70 px-5 py-4">
+      <div className="text-xs font-medium uppercase leading-snug tracking-wide text-muted-foreground">
         {label}
       </div>
-      <div className="mt-1 truncate text-sm font-semibold text-foreground">
+      {hint ? (
+        <div className="mt-0.5 text-[11px] font-medium leading-snug text-muted-foreground/80">
+          {hint}
+        </div>
+      ) : null}
+      <div className="mt-2 break-words text-sm font-semibold text-foreground">
         {value}
       </div>
     </div>
@@ -442,4 +641,40 @@ function InfoPill({
       </div>
     </div>
   );
+}
+
+function emptyToNull(value?: string | null): string | null {
+  if (!value) {
+    return null;
+  }
+
+  const normalizedValue = value.trim();
+
+  return normalizedValue ? normalizedValue : null;
+}
+
+function getFirstNameFromFullName(fullName?: string | null): string {
+  if (!fullName) {
+    return "";
+  }
+
+  return fullName.trim().split(/\s+/)[0] ?? "";
+}
+
+function getLastNameFromFullName(fullName?: string | null): string {
+  if (!fullName) {
+    return "";
+  }
+
+  const parts = fullName.trim().split(/\s+/);
+
+  return parts.length > 1 ? parts.slice(1).join(" ") : "";
+}
+
+function formatDateTime(value: string | null | undefined, language: "ro" | "en") {
+  if (!value) {
+    return null;
+  }
+
+  return new Date(value).toLocaleString(language === "ro" ? "ro-RO" : "en-US");
 }
