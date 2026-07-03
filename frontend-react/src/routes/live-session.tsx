@@ -46,7 +46,7 @@ import {
 } from "@/lib/doctorSettings";
 
 export const Route = createFileRoute("/live-session")({
-  head: () => ({ meta: [{ title: "KinetoLive" }] }),
+  head: () => ({ meta: [{ title: "Live Session — KinetoLive" }] }),
   component: LiveSessionPage,
 });
 
@@ -59,7 +59,6 @@ const SELECTED_EXERCISE_KEY = "kinetolive:selectedExercise";
 const LIVE_SESSION_TEXT = {
   ro: {
     pageTitle: "Sesiune live",
-    browserTitle: "Sesiune live — KinetoLive",
     pageDescription:
       "Porneste o sesiune de recuperare, transmite esantioane BNO055 prin WebSocket si analizeaza semnalul complet al miscarii.",
     simulatorNotice:
@@ -116,6 +115,7 @@ const LIVE_SESSION_TEXT = {
     evaluatedExercise: "Exercitiu evaluat",
     modelDetectedExercise: "Exercitiu vazut de model",
     qualityModel: "Model calitate",
+    perRepetition: "Pe fiecare repetare",
     repetitionsTable: "Repetari detectate",
     segment: "Segment",
     classificationWindow: "Fereastra clasificare",
@@ -235,7 +235,6 @@ const LIVE_SESSION_TEXT = {
   },
   en: {
     pageTitle: "Live Session",
-    browserTitle: "Live session — KinetoLive",
     pageDescription:
       "Start a rehabilitation session, stream BNO055 samples through WebSocket and analyze the complete movement signal.",
     simulatorNotice:
@@ -292,6 +291,7 @@ const LIVE_SESSION_TEXT = {
     evaluatedExercise: "Evaluated exercise",
     modelDetectedExercise: "Model-detected exercise",
     qualityModel: "Quality model",
+    perRepetition: "Per repetition",
     repetitionsTable: "Detected repetitions",
     segment: "Segment",
     classificationWindow: "Classification window",
@@ -417,10 +417,6 @@ type LiveSessionText = (typeof LIVE_SESSION_TEXT)[keyof typeof LIVE_SESSION_TEXT
 function LiveSessionPage() {
   const { language } = useAppLanguage();
   const text = LIVE_SESSION_TEXT[language];
-
-  useEffect(() => {
-    document.title = text.browserTitle;
-  }, [text.browserTitle]);
   const {
     selectedPatient,
     selectedPatientId,
@@ -1235,10 +1231,6 @@ function LiveControlsPanel({
   const { language } = useAppLanguage();
   const text = LIVE_SESSION_TEXT[language];
 
-  useEffect(() => {
-    document.title = text.browserTitle;
-  }, [text.browserTitle]);
-
   return (
     <aside className="xl:sticky xl:top-24 xl:max-h-[calc(100vh-7rem)] xl:self-start xl:overflow-y-auto xl:pr-1">
       <div className="rounded-2xl border border-border bg-background p-4 shadow-sm">
@@ -1389,10 +1381,6 @@ function SourceBadge({ simulating, hasLiveData }: { simulating: boolean; hasLive
   const { language } = useAppLanguage();
   const text = LIVE_SESSION_TEXT[language];
 
-  useEffect(() => {
-    document.title = text.browserTitle;
-  }, [text.browserTitle]);
-
   if (simulating) {
     return (
       <span className="inline-flex items-center gap-1 rounded-full border border-cyan/30 bg-[color:var(--cyan)]/10 px-2.5 py-1 text-xs font-semibold text-[color:var(--cyan)]">
@@ -1414,10 +1402,6 @@ function LiveValuesStrip({ sample }: { sample: SensorSample | null }) {
   // Afiseaza ultimele valori live langa graficul principal
   const { language } = useAppLanguage();
   const text = LIVE_SESSION_TEXT[language];
-
-  useEffect(() => {
-    document.title = text.browserTitle;
-  }, [text.browserTitle]);
 
   if (!sample) {
     return (
@@ -1501,10 +1485,6 @@ function ConnectionBadge({ status }: { status: string }) {
   // Afiseaza starea conexiunii live
   const { language } = useAppLanguage();
   const text = LIVE_SESSION_TEXT[language];
-
-  useEffect(() => {
-    document.title = text.browserTitle;
-  }, [text.browserTitle]);
   const isOpen = status === "open";
 
   return (
@@ -1633,6 +1613,37 @@ function QualityFeedbackCard({
 }
 
 
+function getQualityModelExerciseCodes(result: MLAnalysisResult): number[] {
+  // Extrage modelele de calitate folosite pe repetari
+  const codes = new Set<number>();
+
+  for (const repetition of result.repetitions ?? []) {
+    if (typeof repetition.qualityModelExerciseCode === "number") {
+      codes.add(repetition.qualityModelExerciseCode);
+    }
+  }
+
+  return Array.from(codes).sort((a, b) => a - b);
+}
+
+function usesMixedQualityModels(result: MLAnalysisResult): boolean {
+  // Verifica daca analiza automata a folosit modele diferite pe repetari
+  return getQualityModelExerciseCodes(result).length > 1;
+}
+
+function formatQualityModelResult(
+  result: MLAnalysisResult,
+  text: LiveSessionText,
+): string {
+  // In modul automat, daca modelul vede exercitii diferite pe repetari,
+  // nu afisam un singur exercitiu dominant ca exercitiu evaluat.
+  if (result.analysisMode === "automatic" && usesMixedQualityModels(result)) {
+    return text.perRepetition;
+  }
+
+  return formatExerciseResult(result.qualityModelExerciseCode, text);
+}
+
 function AnalysisModeCard({
                             result,
                             text,
@@ -1662,7 +1673,7 @@ function AnalysisModeCard({
 
       <ResultMetric
         label={text.evaluatedExercise}
-        value={formatExerciseResult(result.qualityModelExerciseCode, text)}
+        value={formatQualityModelResult(result, text)}
         icon={Dumbbell}
       />
 
@@ -1696,7 +1707,7 @@ function RepetitionsTable({
           {text.repetitionsTable}
         </div>
         <div className="text-xs text-muted-foreground">
-          {text.qualityModel}: {formatExerciseResult(result.qualityModelExerciseCode, text)}
+          {text.qualityModel}: {formatQualityModelResult(result, text)}
         </div>
       </div>
 
@@ -1837,7 +1848,7 @@ function SegmentationDebugCard({
         />
         <InfoPill
           label={text.qualityModel}
-          value={formatExerciseResult(result.qualityModelExerciseCode, text)}
+          value={formatQualityModelResult(result, text)}
         />
       </div>
     </div>
@@ -1986,10 +1997,6 @@ function LiveChart({
   // Afiseaza grafic live sau stare goala
   const { language } = useAppLanguage();
   const text = LIVE_SESSION_TEXT[language];
-
-  useEffect(() => {
-    document.title = text.browserTitle;
-  }, [text.browserTitle]);
   const heightClass = size === "large" ? "h-[205px]" : "h-[165px]";
 
   if (empty) {

@@ -23,6 +23,16 @@ AUTO_EXERCISE_CODE = 0
 # Fereastra cu vecini facea ca repetarile cu amplitudine mica sa fie contaminate de miscari normale/rapide.
 CLASSIFICATION_CONTEXT_REPETITIONS = 0
 
+# Stabilizare pentru exercitiul detectat automat la nivel de sesiune.
+# Modelele pot confunda local e7 cu e8 pe cate o repetare, dar sesiunea trebuie
+# evaluata cu un singur exercitiu dominant.
+SESSION_FULL_SIGNAL_WEIGHT = 0.50
+SESSION_REPETITION_MEAN_WEIGHT = 0.35
+SESSION_REPETITION_VOTE_WEIGHT = 0.15
+SESSION_TIE_MARGIN = 0.08
+SESSION_SEGMENTATION_PREFERENCE_MARGIN = 0.10
+
+
 
 def calculate_motion_metrics(signal_data):
     # Calculeaza indicatori pentru a separa miscarea reala de zgomotul senzorului
@@ -563,22 +573,25 @@ class PredictionService:
             classification_inputs,
         )
 
-        exercise_probability_means = safe_mean_probability(
-            exercise_predictions["probability_sum"],
-            len(exercise_predictions["items"]),
+        session_exercise_decision = self.determine_session_exercise(
+            signal_data=signal_data,
+            detection_info=detection_info,
+            exercise_predictions=exercise_predictions,
+            segmentation_exercise_code=segmentation_exercise_code,
+            selected_exercise_code=selected_exercise_code,
+            analysis_mode=analysis_mode,
         )
 
-        detected_exercise_code = max(
-            exercise_probability_means,
-            key=exercise_probability_means.get,
-        )
-        detected_exercise_confidence = float(
-            exercise_probability_means[detected_exercise_code] * 100
-        )
+        exercise_probability_means = session_exercise_decision["repetitionProbabilityMeans"]
+        detected_exercise_code = int(session_exercise_decision["exerciseCode"])
+        detected_exercise_confidence = float(session_exercise_decision["confidence"] * 100)
 
         if analysis_mode == "manual":
             quality_model_exercise_code = selected_exercise_code
         else:
+            # In modul automat pastram exercitiul dominant doar ca rezultat de sesiune.
+            # Pentru fiecare repetare, modelul de calitate se alege dupa exercitiul vazut
+            # efectiv de model pe repetarea respectiva, ca sa nu ascundem predictiile mixte.
             quality_model_exercise_code = detected_exercise_code
 
         if quality_model_exercise_code not in self.quality_models:
@@ -592,12 +605,30 @@ class PredictionService:
             segment_info=segment_info,
             quality_model=quality_model,
             quality_model_exercise_code=quality_model_exercise_code,
+            quality_models=self.quality_models,
+            analysis_mode=analysis_mode,
         )
 
-        repetition_predictions, quality_post_processing = apply_session_quality_correction(
-            repetition_predictions,
-            quality_model_exercise_code,
-        )
+        quality_model_codes_in_repetitions = sorted({
+            int(repetition.qualityModelExerciseCode)
+            for repetition in repetition_predictions
+            if repetition.qualityModelExerciseCode is not None
+        })
+
+        if len(quality_model_codes_in_repetitions) <= 1:
+            repetition_predictions, quality_post_processing = apply_session_quality_correction(
+                repetition_predictions,
+                quality_model_exercise_code,
+            )
+        else:
+            # Corectia pe sesiune este dezactivata cand repetarile au fost evaluate
+            # cu modele de calitate diferite.
+            quality_post_processing = {
+                "enabled": False,
+                "reason": "mixed_quality_models_in_automatic_mode",
+                "qualityModelExerciseCodes": quality_model_codes_in_repetitions,
+            }
+
         quality_probability_sum = calculate_quality_sum_from_predictions(
             repetition_predictions,
         )
@@ -632,10 +663,14 @@ class PredictionService:
             "selectedExerciseCode": selected_exercise_code,
             "segmentationExerciseCode": segmentation_exercise_code,
             "qualityModelExerciseCode": quality_model_exercise_code,
+            "qualityModelSelectionMode": (
+                "per_repetition" if analysis_mode == "automatic" else "session_fixed"
+            ),
             "exerciseProbabilityMeans": {
                 str(key): float(value * 100)
                 for key, value in exercise_probability_means.items()
             },
+            "sessionExerciseDecision": session_exercise_decision["debug"],
             "qualityProbabilityMeans": {
                 str(key): float(value * 100)
                 for key, value in quality_probability_means.items()
@@ -778,6 +813,168 @@ class PredictionService:
 
         return best_candidate
 
+    def get_probability_dictionary(self, model, features):
+        # Intoarce probabilitatile modelului ca dictionar {clasa: probabilitate}
+        classes, probabilities = self.get_model_probabilities(
+            model,
+            features.reshape(1, -1),
+        )
+
+        result = {6: 0.0, 7: 0.0, 8: 0.0}
+
+        for class_value, probability in zip(classes, probabilities):
+            class_value = int(class_value)
+
+            if class_value in result:
+                result[class_value] = float(probability)
+
+        return result
+
+    def extract_active_session_segment(self, signal_data, detection_info):
+        # Foloseste zona activa pentru clasificarea exercitiului la nivel de sesiune
+        signal_data = np.asarray(signal_data, dtype=float)
+
+        active_start = int(detection_info.get("activeStartSample", 0) or 0)
+        active_end = int(detection_info.get("activeEndSample", len(signal_data)) or len(signal_data))
+
+        active_start = max(0, min(active_start, len(signal_data)))
+        active_end = max(active_start, min(active_end, len(signal_data)))
+
+        if active_end - active_start >= FS:
+            return signal_data[active_start:active_end]
+
+        return signal_data
+
+    def calculate_vote_share(self, exercise_prediction_items):
+        # Calculeaza votul local al repetarilor pentru e6/e7/e8
+        vote_share = {6: 0.0, 7: 0.0, 8: 0.0}
+
+        if not exercise_prediction_items:
+            return vote_share
+
+        for item in exercise_prediction_items:
+            exercise_code = int(item.get("predictedExerciseCode", 0))
+
+            if exercise_code in vote_share:
+                vote_share[exercise_code] += 1.0
+
+        total = float(len(exercise_prediction_items))
+
+        if total <= 0:
+            return vote_share
+
+        return {
+            exercise_code: value / total
+            for exercise_code, value in vote_share.items()
+        }
+
+    def determine_session_exercise(
+        self,
+        signal_data,
+        detection_info,
+        exercise_predictions,
+        segmentation_exercise_code,
+        selected_exercise_code,
+        analysis_mode,
+    ):
+        # Alege exercitiul dominant al sesiunii, nu exercitiul local al fiecarei repetari
+        repetition_probability_means = safe_mean_probability(
+            exercise_predictions["probability_sum"],
+            len(exercise_predictions["items"]),
+        )
+
+        vote_share = self.calculate_vote_share(exercise_predictions["items"])
+
+        session_segment = self.extract_active_session_segment(
+            signal_data,
+            detection_info,
+        )
+
+        full_signal_features = extract_segment_features(session_segment, FS)
+        full_signal_probabilities = self.get_probability_dictionary(
+            self.model_exercise,
+            full_signal_features,
+        )
+
+        combined_scores = {}
+
+        for exercise_code in VALID_EXERCISE_CODES:
+            combined_scores[exercise_code] = float(
+                SESSION_FULL_SIGNAL_WEIGHT * full_signal_probabilities.get(exercise_code, 0.0)
+                + SESSION_REPETITION_MEAN_WEIGHT * repetition_probability_means.get(exercise_code, 0.0)
+                + SESSION_REPETITION_VOTE_WEIGHT * vote_share.get(exercise_code, 0.0)
+            )
+
+        sorted_scores = sorted(
+            combined_scores.items(),
+            key=lambda item: item[1],
+            reverse=True,
+        )
+
+        selected_session_exercise = int(sorted_scores[0][0])
+        selected_score = float(sorted_scores[0][1])
+        second_score = float(sorted_scores[1][1]) if len(sorted_scores) > 1 else 0.0
+
+        segmentation_exercise_code = int(segmentation_exercise_code)
+
+        # Cand e7 si e8 sunt foarte apropiate, preferam exercitiul pentru care segmentarea
+        # a fost aleasa ca fiind cea mai coerenta. Asta evita schimbarea e7/e8 pentru cateva
+        # repetari locale cu incredere mica sau medie.
+        if (
+            analysis_mode == "automatic"
+            and segmentation_exercise_code in VALID_EXERCISE_CODES
+            and selected_session_exercise != segmentation_exercise_code
+        ):
+            segmentation_score = combined_scores.get(segmentation_exercise_code, 0.0)
+            top_gap = selected_score - second_score
+            segmentation_gap = selected_score - segmentation_score
+
+            if (
+                top_gap <= SESSION_TIE_MARGIN
+                or segmentation_gap <= SESSION_SEGMENTATION_PREFERENCE_MARGIN
+            ):
+                selected_session_exercise = segmentation_exercise_code
+                selected_score = float(segmentation_score)
+
+        if analysis_mode == "manual" and selected_exercise_code in VALID_EXERCISE_CODES:
+            # In modul manual, exercitiul evaluat ramane cel ales de doctor.
+            selected_session_exercise = int(selected_exercise_code)
+            selected_score = max(
+                combined_scores.get(selected_session_exercise, 0.0),
+                repetition_probability_means.get(selected_session_exercise, 0.0),
+            )
+
+        return {
+            "exerciseCode": int(selected_session_exercise),
+            "confidence": float(np.clip(selected_score, 0.0, 1.0)),
+            "repetitionProbabilityMeans": repetition_probability_means,
+            "debug": {
+                "selectedSessionExerciseCode": int(selected_session_exercise),
+                "segmentationExerciseCode": int(segmentation_exercise_code),
+                "analysisMode": analysis_mode,
+                "fullSignalProbabilities": {
+                    str(key): float(value * 100)
+                    for key, value in full_signal_probabilities.items()
+                },
+                "repetitionProbabilityMeans": {
+                    str(key): float(value * 100)
+                    for key, value in repetition_probability_means.items()
+                },
+                "repetitionVoteShare": {
+                    str(key): float(value * 100)
+                    for key, value in vote_share.items()
+                },
+                "combinedScores": {
+                    str(key): float(value * 100)
+                    for key, value in combined_scores.items()
+                },
+                "tieMargin": float(SESSION_TIE_MARGIN * 100),
+                "segmentationPreferenceMargin": float(
+                    SESSION_SEGMENTATION_PREFERENCE_MARGIN * 100
+                ),
+            },
+        }
+
     def build_classification_inputs(self, signal_data, segments, segment_info):
         # Creeaza ferestre de clasificare cu context in jurul fiecarei repetari
         classification_inputs = []
@@ -858,6 +1055,8 @@ class PredictionService:
         segment_info,
         quality_model,
         quality_model_exercise_code,
+        quality_models=None,
+        analysis_mode="manual",
     ):
         # Ruleaza modelul de calitate corect pentru fiecare repetare
         quality_probability_sum = {1: 0.0, 2: 0.0, 3: 0.0}
@@ -865,9 +1064,26 @@ class PredictionService:
 
         for index, classification_input in enumerate(classification_inputs):
             x_segment = classification_input["features"].reshape(1, -1)
+            exercise_prediction = exercise_prediction_items[index]
+
+            current_quality_model_exercise_code = int(quality_model_exercise_code)
+
+            if analysis_mode == "automatic" and quality_models is not None:
+                model_detected_exercise_code = int(exercise_prediction["predictedExerciseCode"])
+
+                if model_detected_exercise_code in quality_models:
+                    current_quality_model_exercise_code = model_detected_exercise_code
+
+            current_quality_model = quality_model
+
+            if quality_models is not None:
+                current_quality_model = quality_models.get(
+                    current_quality_model_exercise_code,
+                    quality_model,
+                )
 
             quality_classes, quality_probabilities = self.get_model_probabilities(
-                quality_model,
+                current_quality_model,
                 x_segment,
             )
 
@@ -883,20 +1099,19 @@ class PredictionService:
             )
 
             current_segment_info = segment_info[index]
-            exercise_prediction = exercise_prediction_items[index]
             motion_amplitude, acc_energy, gyr_energy = get_signal_energy(
                 classification_input["segment"],
-                quality_model_exercise_code,
+                current_quality_model_exercise_code,
             )
 
             repetition_predictions.append(
                 RepetitionPredictionDto(
                     repetitionIndex=current_segment_info["repetitionIndex"],
                     durationSeconds=current_segment_info["durationSeconds"],
-                    predictedExerciseCode=int(quality_model_exercise_code),
+                    predictedExerciseCode=int(current_quality_model_exercise_code),
                     predictedExerciseName=EXERCISE_NAMES.get(
-                        int(quality_model_exercise_code),
-                        str(quality_model_exercise_code),
+                        int(current_quality_model_exercise_code),
+                        str(current_quality_model_exercise_code),
                     ),
                     exerciseConfidence=exercise_prediction["exerciseConfidence"],
                     modelDetectedExerciseCode=exercise_prediction["predictedExerciseCode"],
@@ -905,10 +1120,10 @@ class PredictionService:
                         str(exercise_prediction["predictedExerciseCode"]),
                     ),
                     modelDetectedExerciseConfidence=exercise_prediction["exerciseConfidence"],
-                    qualityModelExerciseCode=int(quality_model_exercise_code),
+                    qualityModelExerciseCode=int(current_quality_model_exercise_code),
                     qualityModelExerciseName=EXERCISE_NAMES.get(
-                        int(quality_model_exercise_code),
-                        str(quality_model_exercise_code),
+                        int(current_quality_model_exercise_code),
+                        str(current_quality_model_exercise_code),
                     ),
                     predictedQualityCode=predicted_quality_code,
                     predictedQualityName=QUALITY_NAMES.get(
