@@ -28,12 +28,13 @@ import {
 import type { DoctorProfilePayload } from "@/lib/auth";
 
 export const Route = createFileRoute("/settings")({
-  head: () => ({ meta: [{ title: "Profile & settings — KinetoLive" }] }),
+  head: () => ({ meta: [{ title: "KinetoLive" }] }),
   component: SettingsPage,
 });
 
 const SETTINGS_TEXT = {
   ro: {
+    pageTitle: "Profil si setari — KinetoLive",
     title: "Profil si setari",
     subtitle:
       "Datele contului doctorului si preferintele folosite in fluxul KinetoLive.",
@@ -47,6 +48,9 @@ const SETTINGS_TEXT = {
     email: "Email",
     role: "Rol",
     roleDoctor: "Doctor",
+    roleAdmin: "Administrator",
+    rolePatient: "Pacient",
+    roleUnknown: "Necunoscut",
     accountStatus: "Status cont",
     active: "Activ",
     inactive: "Inactiv",
@@ -103,6 +107,7 @@ const SETTINGS_TEXT = {
     savedAutomatically: "Modificarile se salveaza automat local.",
   },
   en: {
+    pageTitle: "Profile & settings — KinetoLive",
     title: "Profile & settings",
     subtitle:
       "Doctor account data and preferences used in the KinetoLive workflow.",
@@ -116,6 +121,9 @@ const SETTINGS_TEXT = {
     email: "Email",
     role: "Role",
     roleDoctor: "Doctor",
+    roleAdmin: "Administrator",
+    rolePatient: "Patient",
+    roleUnknown: "Unknown",
     accountStatus: "Account status",
     active: "Active",
     inactive: "Inactive",
@@ -176,6 +184,11 @@ function SettingsPage() {
   const { language } = useAppLanguage();
   const { doctor, updateDoctorProfile } = useAuth();
   const text = SETTINGS_TEXT[language];
+
+  useEffect(() => {
+    document.title = text.pageTitle;
+  }, [text.pageTitle]);
+
   const [settings, setSettings] = useState<DoctorSettings>(() => getDoctorSettings());
   const [profileForm, setProfileForm] = useState<DoctorProfilePayload>(() => ({
     firstName: "",
@@ -188,7 +201,7 @@ function SettingsPage() {
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [profileMessage, setProfileMessage] = useState<{
     type: "success" | "error";
-    text: string;
+    messageKey: "profileSaved" | "profileSaveError";
   } | null>(null);
 
   useEffect(() => {
@@ -260,15 +273,16 @@ function SettingsPage() {
         clinicName: emptyToNull(profileForm.clinicName),
         phoneNumber: emptyToNull(profileForm.phoneNumber),
       });
-      setProfileMessage({ type: "success", text: text.profileSaved });
+      setProfileMessage({ type: "success", messageKey: "profileSaved" });
     } catch {
-      setProfileMessage({ type: "error", text: text.profileSaveError });
+      setProfileMessage({ type: "error", messageKey: "profileSaveError" });
     } finally {
       setIsSavingProfile(false);
     }
   }
 
   const formattedCreatedAt = formatDateTime(doctor?.createdAt, language);
+  const displayedRole = formatRole(doctor?.role, text);
 
   return (
     <div className="space-y-6">
@@ -291,8 +305,8 @@ function SettingsPage() {
         />
         <StatCard
           label={text.role}
-          value={doctor?.role || text.roleDoctor}
-          hint={doctor?.fullName || text.roleDoctor}
+          value={displayedRole}
+          hint={doctor?.fullName || displayedRole}
           icon={UserRound}
           tone="primary"
         />
@@ -358,7 +372,7 @@ function SettingsPage() {
                 value={doctor?.fullName || text.notCompleted}
               />
               <ProfileRow label={text.profileId} value={doctor?.doctorProfileId ?? text.notCompleted} />
-              <ProfileRow label={text.role} value={doctor?.role || text.roleDoctor} />
+              <ProfileRow label={text.role} value={displayedRole} />
               <ProfileRow label={text.createdAt} value={formattedCreatedAt || text.notCompleted} />
             </div>
 
@@ -370,7 +384,7 @@ function SettingsPage() {
                     : "border-rose-500/40 bg-rose-500/10 text-rose-300"
                 }`}
               >
-                {profileMessage.text}
+                {text[profileMessage.messageKey]}
               </div>
             ) : null}
 
@@ -669,6 +683,23 @@ function getLastNameFromFullName(fullName?: string | null): string {
   const parts = fullName.trim().split(/\s+/);
 
   return parts.length > 1 ? parts.slice(1).join(" ") : "";
+}
+
+
+function formatRole(
+  role: string | null | undefined,
+  text: typeof SETTINGS_TEXT.ro | typeof SETTINGS_TEXT.en,
+) {
+  switch ((role ?? "").toUpperCase()) {
+    case "DOCTOR":
+      return text.roleDoctor;
+    case "ADMIN":
+      return text.roleAdmin;
+    case "PATIENT":
+      return text.rolePatient;
+    default:
+      return role || text.roleUnknown;
+  }
 }
 
 function formatDateTime(value: string | null | undefined, language: "ro" | "en") {
