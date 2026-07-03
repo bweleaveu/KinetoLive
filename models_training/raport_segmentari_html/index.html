@@ -1,0 +1,1412 @@
+
+    <!DOCTYPE html>
+    <html lang="ro">
+    <head>
+        <meta charset="UTF-8">
+        <title>Raport verificare segmentari</title>
+
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                margin: 30px;
+                background-color: #f5f5f5;
+                color: #222;
+            }
+
+            h1 {
+                text-align: center;
+                margin-bottom: 40px;
+            }
+
+            .summary {
+                background-color: white;
+                padding: 20px 24px;
+                margin-bottom: 30px;
+                border-radius: 12px;
+                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.10);
+            }
+
+            .segmentare-card {
+                background-color: white;
+                padding: 24px;
+                margin-bottom: 40px;
+                border-radius: 12px;
+                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.10);
+            }
+
+            .segmentare-card h2 {
+                margin-top: 0;
+                color: #1f4e79;
+            }
+
+            .segmentare-card img {
+                width: 100%;
+                max-width: 1400px;
+                display: block;
+                margin-top: 16px;
+                border: 1px solid #ddd;
+                border-radius: 8px;
+            }
+
+            .template-table {
+                border-collapse: collapse;
+                margin-top: 10px;
+                margin-bottom: 20px;
+                width: auto;
+            }
+
+            .template-table th,
+            .template-table td {
+                border: 1px solid #ccc;
+                padding: 8px 12px;
+                text-align: center;
+            }
+
+            .template-table th {
+                background-color: #e8eef7;
+            }
+
+            p {
+                font-size: 14px;
+                line-height: 1.5;
+            }
+
+            code {
+                background-color: #f0f0f0;
+                padding: 2px 4px;
+                border-radius: 4px;
+                word-break: break-all;
+            }
+        </style>
+    </head>
+
+    <body>
+        <h1>Raport verificare segmentari</h1>
+
+        <div class="summary">
+            <p>
+                <strong>Numar fisiere incluse in raport:</strong>
+                27
+            </p>
+
+            <p>
+                <strong>Filtru subiecti:</strong>
+                toate
+            </p>
+
+            <p>
+                <strong>Filtru exercitii:</strong>
+                toate
+            </p>
+
+            <p>
+                <strong>Filtru tipuri:</strong>
+                toate
+            </p>
+
+            <p>
+                <strong>Filtru versiuni:</strong>
+                toate
+            </p>
+        </div>
+
+        
+        <section class="segmentare-card">
+            <h2>s11 / e6 / long / standard</h2>
+
+            <p>
+                <strong>Fisier date:</strong><br>
+                <code>D:\Personal\FAKULTHA\AC\anul4\LICENTA\Roxana\atnecilpp\exerc\physical+therapy+exercises+dataset\TVT\training\s11\e6\u2\ex6_long_bno055_20260616_183236_081602_reversed.txt</code>
+            </p>
+
+            <p>
+                <strong>Fisier template:</strong><br>
+                <code>D:\Personal\FAKULTHA\AC\anul4\LICENTA\Roxana\atnecilpp\exerc\physical+therapy+exercises+dataset\TVT\training\s11\e6\template_times_long.txt</code>
+            </p>
+
+            <h3>Template times</h3>
+            <table class="dataframe template-table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>execution type</th>
+      <th>start</th>
+      <th>end</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td>10</td>
+      <td>1550</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>1610</td>
+      <td>1910</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>1980</td>
+      <td>3480</td>
+    </tr>
+  </tbody>
+</table>
+
+            <h3>Grafic segmentare</h3>
+            <img
+                src="imagini/s11_e6_long_standard.png"
+                alt="s11 / e6 / long / standard"
+            >
+        </section>
+        
+        <section class="segmentare-card">
+            <h2>s11 / e6 / scrt / standard</h2>
+
+            <p>
+                <strong>Fisier date:</strong><br>
+                <code>D:\Personal\FAKULTHA\AC\anul4\LICENTA\Roxana\atnecilpp\exerc\physical+therapy+exercises+dataset\TVT\training\s11\e6\u2\ex6_scrt_bno055_20260616_183236_081602_reversed.txt</code>
+            </p>
+
+            <p>
+                <strong>Fisier template:</strong><br>
+                <code>D:\Personal\FAKULTHA\AC\anul4\LICENTA\Roxana\atnecilpp\exerc\physical+therapy+exercises+dataset\TVT\training\s11\e6\template_times_scrt.txt</code>
+            </p>
+
+            <h3>Template times</h3>
+            <table class="dataframe template-table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>execution type</th>
+      <th>start</th>
+      <th>end</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td>115</td>
+      <td>596</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>679</td>
+      <td>773</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>852</td>
+      <td>1256</td>
+    </tr>
+  </tbody>
+</table>
+
+            <h3>Grafic segmentare</h3>
+            <img
+                src="imagini/s11_e6_scrt_standard.png"
+                alt="s11 / e6 / scrt / standard"
+            >
+        </section>
+        
+        <section class="segmentare-card">
+            <h2>s11 / e7 / long / standard</h2>
+
+            <p>
+                <strong>Fisier date:</strong><br>
+                <code>D:\Personal\FAKULTHA\AC\anul4\LICENTA\Roxana\atnecilpp\exerc\physical+therapy+exercises+dataset\TVT\training\s11\e7\u2\ex7_long_bno055_20260616_184508_892753_reversed.txt</code>
+            </p>
+
+            <p>
+                <strong>Fisier template:</strong><br>
+                <code>D:\Personal\FAKULTHA\AC\anul4\LICENTA\Roxana\atnecilpp\exerc\physical+therapy+exercises+dataset\TVT\training\s11\e7\template_times_long.txt</code>
+            </p>
+
+            <h3>Template times</h3>
+            <table class="dataframe template-table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>execution type</th>
+      <th>start</th>
+      <th>end</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td>1</td>
+      <td>1995</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>2058</td>
+      <td>2533</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>2585</td>
+      <td>4401</td>
+    </tr>
+  </tbody>
+</table>
+
+            <h3>Grafic segmentare</h3>
+            <img
+                src="imagini/s11_e7_long_standard.png"
+                alt="s11 / e7 / long / standard"
+            >
+        </section>
+        
+        <section class="segmentare-card">
+            <h2>s11 / e7 / scrt / standard</h2>
+
+            <p>
+                <strong>Fisier date:</strong><br>
+                <code>D:\Personal\FAKULTHA\AC\anul4\LICENTA\Roxana\atnecilpp\exerc\physical+therapy+exercises+dataset\TVT\training\s11\e7\u2\ex7_scrt_bno055_20260616_184030_561451_reversed.txt</code>
+            </p>
+
+            <p>
+                <strong>Fisier template:</strong><br>
+                <code>D:\Personal\FAKULTHA\AC\anul4\LICENTA\Roxana\atnecilpp\exerc\physical+therapy+exercises+dataset\TVT\training\s11\e7\template_times_scrt.txt</code>
+            </p>
+
+            <h3>Template times</h3>
+            <table class="dataframe template-table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>execution type</th>
+      <th>start</th>
+      <th>end</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td>31</td>
+      <td>561</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>648</td>
+      <td>805</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>909</td>
+      <td>1341</td>
+    </tr>
+  </tbody>
+</table>
+
+            <h3>Grafic segmentare</h3>
+            <img
+                src="imagini/s11_e7_scrt_standard.png"
+                alt="s11 / e7 / scrt / standard"
+            >
+        </section>
+        
+        <section class="segmentare-card">
+            <h2>s11 / e7 / scrt / v2</h2>
+
+            <p>
+                <strong>Fisier date:</strong><br>
+                <code>D:\Personal\FAKULTHA\AC\anul4\LICENTA\Roxana\atnecilpp\exerc\physical+therapy+exercises+dataset\TVT\training\s11\e7\u2\ex7_scrt_v2_bno055_20260616_184325_718708_reversed.txt</code>
+            </p>
+
+            <p>
+                <strong>Fisier template:</strong><br>
+                <code>D:\Personal\FAKULTHA\AC\anul4\LICENTA\Roxana\atnecilpp\exerc\physical+therapy+exercises+dataset\TVT\training\s11\e7\template_times_scrt_v2.txt</code>
+            </p>
+
+            <h3>Template times</h3>
+            <table class="dataframe template-table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>execution type</th>
+      <th>start</th>
+      <th>end</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td>7</td>
+      <td>551</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>594</td>
+      <td>739</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>839</td>
+      <td>1366</td>
+    </tr>
+  </tbody>
+</table>
+
+            <h3>Grafic segmentare</h3>
+            <img
+                src="imagini/s11_e7_scrt_v2.png"
+                alt="s11 / e7 / scrt / v2"
+            >
+        </section>
+        
+        <section class="segmentare-card">
+            <h2>s11 / e8 / long / standard</h2>
+
+            <p>
+                <strong>Fisier date:</strong><br>
+                <code>D:\Personal\FAKULTHA\AC\anul4\LICENTA\Roxana\atnecilpp\exerc\physical+therapy+exercises+dataset\TVT\training\s11\e8\u2\ex8_long_bno055_20260616_185759_909871_reversed.txt</code>
+            </p>
+
+            <p>
+                <strong>Fisier template:</strong><br>
+                <code>D:\Personal\FAKULTHA\AC\anul4\LICENTA\Roxana\atnecilpp\exerc\physical+therapy+exercises+dataset\TVT\training\s11\e8\template_times_long.txt</code>
+            </p>
+
+            <h3>Template times</h3>
+            <table class="dataframe template-table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>execution type</th>
+      <th>start</th>
+      <th>end</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td>40</td>
+      <td>1893</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>1988</td>
+      <td>2329</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>2455</td>
+      <td>4267</td>
+    </tr>
+  </tbody>
+</table>
+
+            <h3>Grafic segmentare</h3>
+            <img
+                src="imagini/s11_e8_long_standard.png"
+                alt="s11 / e8 / long / standard"
+            >
+        </section>
+        
+        <section class="segmentare-card">
+            <h2>s11 / e8 / scrt / standard</h2>
+
+            <p>
+                <strong>Fisier date:</strong><br>
+                <code>D:\Personal\FAKULTHA\AC\anul4\LICENTA\Roxana\atnecilpp\exerc\physical+therapy+exercises+dataset\TVT\training\s11\e8\u2\ex8_scrt_bno055_20260616_185136_335178_reversed.txt</code>
+            </p>
+
+            <p>
+                <strong>Fisier template:</strong><br>
+                <code>D:\Personal\FAKULTHA\AC\anul4\LICENTA\Roxana\atnecilpp\exerc\physical+therapy+exercises+dataset\TVT\training\s11\e8\template_times_scrt.txt</code>
+            </p>
+
+            <h3>Template times</h3>
+            <table class="dataframe template-table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>execution type</th>
+      <th>start</th>
+      <th>end</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td>7</td>
+      <td>521</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>595</td>
+      <td>734</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>826</td>
+      <td>1395</td>
+    </tr>
+  </tbody>
+</table>
+
+            <h3>Grafic segmentare</h3>
+            <img
+                src="imagini/s11_e8_scrt_standard.png"
+                alt="s11 / e8 / scrt / standard"
+            >
+        </section>
+        
+        <section class="segmentare-card">
+            <h2>s12 / e6 / long / standard</h2>
+
+            <p>
+                <strong>Fisier date:</strong><br>
+                <code>D:\Personal\FAKULTHA\AC\anul4\LICENTA\Roxana\atnecilpp\exerc\physical+therapy+exercises+dataset\TVT\training\s12\e6\u2\ex6_long_bno055_20260617_160550_609767.txt</code>
+            </p>
+
+            <p>
+                <strong>Fisier template:</strong><br>
+                <code>D:\Personal\FAKULTHA\AC\anul4\LICENTA\Roxana\atnecilpp\exerc\physical+therapy+exercises+dataset\TVT\training\s12\e6\template_times_long.txt</code>
+            </p>
+
+            <h3>Template times</h3>
+            <table class="dataframe template-table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>execution type</th>
+      <th>start</th>
+      <th>end</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td>28</td>
+      <td>1784</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>1835</td>
+      <td>2265</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>2330</td>
+      <td>4319</td>
+    </tr>
+  </tbody>
+</table>
+
+            <h3>Grafic segmentare</h3>
+            <img
+                src="imagini/s12_e6_long_standard.png"
+                alt="s12 / e6 / long / standard"
+            >
+        </section>
+        
+        <section class="segmentare-card">
+            <h2>s12 / e6 / scrt / standard</h2>
+
+            <p>
+                <strong>Fisier date:</strong><br>
+                <code>D:\Personal\FAKULTHA\AC\anul4\LICENTA\Roxana\atnecilpp\exerc\physical+therapy+exercises+dataset\TVT\training\s12\e6\u2\ex6_scrt_bno055_20260617_140923_695244.txt</code>
+            </p>
+
+            <p>
+                <strong>Fisier template:</strong><br>
+                <code>D:\Personal\FAKULTHA\AC\anul4\LICENTA\Roxana\atnecilpp\exerc\physical+therapy+exercises+dataset\TVT\training\s12\e6\template_times_scrt.txt</code>
+            </p>
+
+            <h3>Template times</h3>
+            <table class="dataframe template-table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>execution type</th>
+      <th>start</th>
+      <th>end</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td>45</td>
+      <td>610</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>688</td>
+      <td>848</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>903</td>
+      <td>1441</td>
+    </tr>
+  </tbody>
+</table>
+
+            <h3>Grafic segmentare</h3>
+            <img
+                src="imagini/s12_e6_scrt_standard.png"
+                alt="s12 / e6 / scrt / standard"
+            >
+        </section>
+        
+        <section class="segmentare-card">
+            <h2>s12 / e7 / long / standard</h2>
+
+            <p>
+                <strong>Fisier date:</strong><br>
+                <code>D:\Personal\FAKULTHA\AC\anul4\LICENTA\Roxana\atnecilpp\exerc\physical+therapy+exercises+dataset\TVT\training\s12\e7\u2\ex7_long_bno055_20260617_165653_093979.txt</code>
+            </p>
+
+            <p>
+                <strong>Fisier template:</strong><br>
+                <code>D:\Personal\FAKULTHA\AC\anul4\LICENTA\Roxana\atnecilpp\exerc\physical+therapy+exercises+dataset\TVT\training\s12\e7\template_times_long.txt</code>
+            </p>
+
+            <h3>Template times</h3>
+            <table class="dataframe template-table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>execution type</th>
+      <th>start</th>
+      <th>end</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td>13</td>
+      <td>1855</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>1925</td>
+      <td>2385</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>2454</td>
+      <td>4224</td>
+    </tr>
+  </tbody>
+</table>
+
+            <h3>Grafic segmentare</h3>
+            <img
+                src="imagini/s12_e7_long_standard.png"
+                alt="s12 / e7 / long / standard"
+            >
+        </section>
+        
+        <section class="segmentare-card">
+            <h2>s12 / e7 / scrt / standard</h2>
+
+            <p>
+                <strong>Fisier date:</strong><br>
+                <code>D:\Personal\FAKULTHA\AC\anul4\LICENTA\Roxana\atnecilpp\exerc\physical+therapy+exercises+dataset\TVT\training\s12\e7\u2\ex7_scrt_bno055_20260617_161240_779392.txt</code>
+            </p>
+
+            <p>
+                <strong>Fisier template:</strong><br>
+                <code>D:\Personal\FAKULTHA\AC\anul4\LICENTA\Roxana\atnecilpp\exerc\physical+therapy+exercises+dataset\TVT\training\s12\e7\template_times_scrt.txt</code>
+            </p>
+
+            <h3>Template times</h3>
+            <table class="dataframe template-table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>execution type</th>
+      <th>start</th>
+      <th>end</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td>8</td>
+      <td>553</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>613</td>
+      <td>762</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>781</td>
+      <td>1289</td>
+    </tr>
+  </tbody>
+</table>
+
+            <h3>Grafic segmentare</h3>
+            <img
+                src="imagini/s12_e7_scrt_standard.png"
+                alt="s12 / e7 / scrt / standard"
+            >
+        </section>
+        
+        <section class="segmentare-card">
+            <h2>s12 / e7 / scrt / v2</h2>
+
+            <p>
+                <strong>Fisier date:</strong><br>
+                <code>D:\Personal\FAKULTHA\AC\anul4\LICENTA\Roxana\atnecilpp\exerc\physical+therapy+exercises+dataset\TVT\training\s12\e7\u2\ex7_scrt_v2_bno055_20260617_164227_962207.txt</code>
+            </p>
+
+            <p>
+                <strong>Fisier template:</strong><br>
+                <code>D:\Personal\FAKULTHA\AC\anul4\LICENTA\Roxana\atnecilpp\exerc\physical+therapy+exercises+dataset\TVT\training\s12\e7\template_times_scrt_v2.txt</code>
+            </p>
+
+            <h3>Template times</h3>
+            <table class="dataframe template-table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>execution type</th>
+      <th>start</th>
+      <th>end</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td>50</td>
+      <td>668</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>769</td>
+      <td>938</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>1026</td>
+      <td>1543</td>
+    </tr>
+  </tbody>
+</table>
+
+            <h3>Grafic segmentare</h3>
+            <img
+                src="imagini/s12_e7_scrt_v2.png"
+                alt="s12 / e7 / scrt / v2"
+            >
+        </section>
+        
+        <section class="segmentare-card">
+            <h2>s12 / e8 / long / standard</h2>
+
+            <p>
+                <strong>Fisier date:</strong><br>
+                <code>D:\Personal\FAKULTHA\AC\anul4\LICENTA\Roxana\atnecilpp\exerc\physical+therapy+exercises+dataset\TVT\training\s12\e8\u2\ex8_long_bno055_20260617_170534_544651.txt</code>
+            </p>
+
+            <p>
+                <strong>Fisier template:</strong><br>
+                <code>D:\Personal\FAKULTHA\AC\anul4\LICENTA\Roxana\atnecilpp\exerc\physical+therapy+exercises+dataset\TVT\training\s12\e8\template_times_long.txt</code>
+            </p>
+
+            <h3>Template times</h3>
+            <table class="dataframe template-table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>execution type</th>
+      <th>start</th>
+      <th>end</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td>10</td>
+      <td>1650</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>1685</td>
+      <td>2175</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>2200</td>
+      <td>3774</td>
+    </tr>
+  </tbody>
+</table>
+
+            <h3>Grafic segmentare</h3>
+            <img
+                src="imagini/s12_e8_long_standard.png"
+                alt="s12 / e8 / long / standard"
+            >
+        </section>
+        
+        <section class="segmentare-card">
+            <h2>s12 / e8 / scrt / standard</h2>
+
+            <p>
+                <strong>Fisier date:</strong><br>
+                <code>D:\Personal\FAKULTHA\AC\anul4\LICENTA\Roxana\atnecilpp\exerc\physical+therapy+exercises+dataset\TVT\training\s12\e8\u2\ex8_scrt_bno055_20260617_170018_516871.txt</code>
+            </p>
+
+            <p>
+                <strong>Fisier template:</strong><br>
+                <code>D:\Personal\FAKULTHA\AC\anul4\LICENTA\Roxana\atnecilpp\exerc\physical+therapy+exercises+dataset\TVT\training\s12\e8\template_times_scrt.txt</code>
+            </p>
+
+            <h3>Template times</h3>
+            <table class="dataframe template-table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>execution type</th>
+      <th>start</th>
+      <th>end</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td>105</td>
+      <td>752</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>800</td>
+      <td>930</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>1017</td>
+      <td>1536</td>
+    </tr>
+  </tbody>
+</table>
+
+            <h3>Grafic segmentare</h3>
+            <img
+                src="imagini/s12_e8_scrt_standard.png"
+                alt="s12 / e8 / scrt / standard"
+            >
+        </section>
+        
+        <section class="segmentare-card">
+            <h2>s13 / e6 / long / standard</h2>
+
+            <p>
+                <strong>Fisier date:</strong><br>
+                <code>D:\Personal\FAKULTHA\AC\anul4\LICENTA\Roxana\atnecilpp\exerc\physical+therapy+exercises+dataset\TVT\validation\s13\e6\u2\ex6_long_bno055_20260617_172659_753641.txt</code>
+            </p>
+
+            <p>
+                <strong>Fisier template:</strong><br>
+                <code>D:\Personal\FAKULTHA\AC\anul4\LICENTA\Roxana\atnecilpp\exerc\physical+therapy+exercises+dataset\TVT\validation\s13\e6\template_times_long.txt</code>
+            </p>
+
+            <h3>Template times</h3>
+            <table class="dataframe template-table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>execution type</th>
+      <th>start</th>
+      <th>end</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td>23</td>
+      <td>1539</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>1587</td>
+      <td>1934</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>1991</td>
+      <td>3475</td>
+    </tr>
+  </tbody>
+</table>
+
+            <h3>Grafic segmentare</h3>
+            <img
+                src="imagini/s13_e6_long_standard.png"
+                alt="s13 / e6 / long / standard"
+            >
+        </section>
+        
+        <section class="segmentare-card">
+            <h2>s13 / e6 / scrt / standard</h2>
+
+            <p>
+                <strong>Fisier date:</strong><br>
+                <code>D:\Personal\FAKULTHA\AC\anul4\LICENTA\Roxana\atnecilpp\exerc\physical+therapy+exercises+dataset\TVT\validation\s13\e6\u2\ex6_scrt_bno055_20260617_172435_031596.txt</code>
+            </p>
+
+            <p>
+                <strong>Fisier template:</strong><br>
+                <code>D:\Personal\FAKULTHA\AC\anul4\LICENTA\Roxana\atnecilpp\exerc\physical+therapy+exercises+dataset\TVT\validation\s13\e6\template_times_scrt.txt</code>
+            </p>
+
+            <h3>Template times</h3>
+            <table class="dataframe template-table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>execution type</th>
+      <th>start</th>
+      <th>end</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td>53</td>
+      <td>515</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>590</td>
+      <td>694</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>771</td>
+      <td>1233</td>
+    </tr>
+  </tbody>
+</table>
+
+            <h3>Grafic segmentare</h3>
+            <img
+                src="imagini/s13_e6_scrt_standard.png"
+                alt="s13 / e6 / scrt / standard"
+            >
+        </section>
+        
+        <section class="segmentare-card">
+            <h2>s13 / e7 / long / standard</h2>
+
+            <p>
+                <strong>Fisier date:</strong><br>
+                <code>D:\Personal\FAKULTHA\AC\anul4\LICENTA\Roxana\atnecilpp\exerc\physical+therapy+exercises+dataset\TVT\validation\s13\e7\u2\ex7_long_bno055_20260617_174129_150322.txt</code>
+            </p>
+
+            <p>
+                <strong>Fisier template:</strong><br>
+                <code>D:\Personal\FAKULTHA\AC\anul4\LICENTA\Roxana\atnecilpp\exerc\physical+therapy+exercises+dataset\TVT\validation\s13\e7\template_times_long.txt</code>
+            </p>
+
+            <h3>Template times</h3>
+            <table class="dataframe template-table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>execution type</th>
+      <th>start</th>
+      <th>end</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td>62</td>
+      <td>1502</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>1560</td>
+      <td>1994</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>2036</td>
+      <td>3442</td>
+    </tr>
+  </tbody>
+</table>
+
+            <h3>Grafic segmentare</h3>
+            <img
+                src="imagini/s13_e7_long_standard.png"
+                alt="s13 / e7 / long / standard"
+            >
+        </section>
+        
+        <section class="segmentare-card">
+            <h2>s13 / e7 / scrt / standard</h2>
+
+            <p>
+                <strong>Fisier date:</strong><br>
+                <code>D:\Personal\FAKULTHA\AC\anul4\LICENTA\Roxana\atnecilpp\exerc\physical+therapy+exercises+dataset\TVT\validation\s13\e7\u2\ex7_scrt_bno055_20260617_173949_009515.txt</code>
+            </p>
+
+            <p>
+                <strong>Fisier template:</strong><br>
+                <code>D:\Personal\FAKULTHA\AC\anul4\LICENTA\Roxana\atnecilpp\exerc\physical+therapy+exercises+dataset\TVT\validation\s13\e7\template_times_scrt.txt</code>
+            </p>
+
+            <h3>Template times</h3>
+            <table class="dataframe template-table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>execution type</th>
+      <th>start</th>
+      <th>end</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td>60</td>
+      <td>482</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>556</td>
+      <td>696</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>774</td>
+      <td>1218</td>
+    </tr>
+  </tbody>
+</table>
+
+            <h3>Grafic segmentare</h3>
+            <img
+                src="imagini/s13_e7_scrt_standard.png"
+                alt="s13 / e7 / scrt / standard"
+            >
+        </section>
+        
+        <section class="segmentare-card">
+            <h2>s13 / e8 / long / standard</h2>
+
+            <p>
+                <strong>Fisier date:</strong><br>
+                <code>D:\Personal\FAKULTHA\AC\anul4\LICENTA\Roxana\atnecilpp\exerc\physical+therapy+exercises+dataset\TVT\validation\s13\e8\u2\ex8_long_bno055_20260617_175430_391606.txt</code>
+            </p>
+
+            <p>
+                <strong>Fisier template:</strong><br>
+                <code>D:\Personal\FAKULTHA\AC\anul4\LICENTA\Roxana\atnecilpp\exerc\physical+therapy+exercises+dataset\TVT\validation\s13\e8\template_times_long.txt</code>
+            </p>
+
+            <h3>Template times</h3>
+            <table class="dataframe template-table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>execution type</th>
+      <th>start</th>
+      <th>end</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td>49</td>
+      <td>1315</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>1379</td>
+      <td>1724</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>1790</td>
+      <td>3094</td>
+    </tr>
+  </tbody>
+</table>
+
+            <h3>Grafic segmentare</h3>
+            <img
+                src="imagini/s13_e8_long_standard.png"
+                alt="s13 / e8 / long / standard"
+            >
+        </section>
+        
+        <section class="segmentare-card">
+            <h2>s13 / e8 / scrt / standard</h2>
+
+            <p>
+                <strong>Fisier date:</strong><br>
+                <code>D:\Personal\FAKULTHA\AC\anul4\LICENTA\Roxana\atnecilpp\exerc\physical+therapy+exercises+dataset\TVT\validation\s13\e8\u2\ex8_scrt_bno055_20260617_174540_102388.txt</code>
+            </p>
+
+            <p>
+                <strong>Fisier template:</strong><br>
+                <code>D:\Personal\FAKULTHA\AC\anul4\LICENTA\Roxana\atnecilpp\exerc\physical+therapy+exercises+dataset\TVT\validation\s13\e8\template_times_scrt.txt</code>
+            </p>
+
+            <h3>Template times</h3>
+            <table class="dataframe template-table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>execution type</th>
+      <th>start</th>
+      <th>end</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td>22</td>
+      <td>433</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>466</td>
+      <td>601</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>642</td>
+      <td>1038</td>
+    </tr>
+  </tbody>
+</table>
+
+            <h3>Grafic segmentare</h3>
+            <img
+                src="imagini/s13_e8_scrt_standard.png"
+                alt="s13 / e8 / scrt / standard"
+            >
+        </section>
+        
+        <section class="segmentare-card">
+            <h2>s13 / e8 / scrt / v2</h2>
+
+            <p>
+                <strong>Fisier date:</strong><br>
+                <code>D:\Personal\FAKULTHA\AC\anul4\LICENTA\Roxana\atnecilpp\exerc\physical+therapy+exercises+dataset\TVT\validation\s13\e8\u2\ex8_scrt_v2_bno055_20260617_175235_588570.txt</code>
+            </p>
+
+            <p>
+                <strong>Fisier template:</strong><br>
+                <code>D:\Personal\FAKULTHA\AC\anul4\LICENTA\Roxana\atnecilpp\exerc\physical+therapy+exercises+dataset\TVT\validation\s13\e8\template_times_scrt_v2.txt</code>
+            </p>
+
+            <h3>Template times</h3>
+            <table class="dataframe template-table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>execution type</th>
+      <th>start</th>
+      <th>end</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td>39</td>
+      <td>438</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>472</td>
+      <td>639</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>694</td>
+      <td>1094</td>
+    </tr>
+  </tbody>
+</table>
+
+            <h3>Grafic segmentare</h3>
+            <img
+                src="imagini/s13_e8_scrt_v2.png"
+                alt="s13 / e8 / scrt / v2"
+            >
+        </section>
+        
+        <section class="segmentare-card">
+            <h2>s14 / e6 / long / standard</h2>
+
+            <p>
+                <strong>Fisier date:</strong><br>
+                <code>D:\Personal\FAKULTHA\AC\anul4\LICENTA\Roxana\atnecilpp\exerc\physical+therapy+exercises+dataset\TVT\testing\s14\e6\u2\ex6_long_bno055_20260617_181320_274509.txt</code>
+            </p>
+
+            <p>
+                <strong>Fisier template:</strong><br>
+                <code>D:\Personal\FAKULTHA\AC\anul4\LICENTA\Roxana\atnecilpp\exerc\physical+therapy+exercises+dataset\TVT\testing\s14\e6\template_times_long.txt</code>
+            </p>
+
+            <h3>Template times</h3>
+            <table class="dataframe template-table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>execution type</th>
+      <th>start</th>
+      <th>end</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td>66</td>
+      <td>1540</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>1635</td>
+      <td>1980</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>2025</td>
+      <td>3525</td>
+    </tr>
+  </tbody>
+</table>
+
+            <h3>Grafic segmentare</h3>
+            <img
+                src="imagini/s14_e6_long_standard.png"
+                alt="s14 / e6 / long / standard"
+            >
+        </section>
+        
+        <section class="segmentare-card">
+            <h2>s14 / e6 / scrt / standard</h2>
+
+            <p>
+                <strong>Fisier date:</strong><br>
+                <code>D:\Personal\FAKULTHA\AC\anul4\LICENTA\Roxana\atnecilpp\exerc\physical+therapy+exercises+dataset\TVT\testing\s14\e6\u2\ex6_scrt_bno055_20260617_181110_220994.txt</code>
+            </p>
+
+            <p>
+                <strong>Fisier template:</strong><br>
+                <code>D:\Personal\FAKULTHA\AC\anul4\LICENTA\Roxana\atnecilpp\exerc\physical+therapy+exercises+dataset\TVT\testing\s14\e6\template_times_scrt.txt</code>
+            </p>
+
+            <h3>Template times</h3>
+            <table class="dataframe template-table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>execution type</th>
+      <th>start</th>
+      <th>end</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td>67</td>
+      <td>530</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>561</td>
+      <td>708</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>761</td>
+      <td>1203</td>
+    </tr>
+  </tbody>
+</table>
+
+            <h3>Grafic segmentare</h3>
+            <img
+                src="imagini/s14_e6_scrt_standard.png"
+                alt="s14 / e6 / scrt / standard"
+            >
+        </section>
+        
+        <section class="segmentare-card">
+            <h2>s14 / e7 / long / standard</h2>
+
+            <p>
+                <strong>Fisier date:</strong><br>
+                <code>D:\Personal\FAKULTHA\AC\anul4\LICENTA\Roxana\atnecilpp\exerc\physical+therapy+exercises+dataset\TVT\testing\s14\e7\u2\ex7_long_bno055_20260617_182325_861269.txt</code>
+            </p>
+
+            <p>
+                <strong>Fisier template:</strong><br>
+                <code>D:\Personal\FAKULTHA\AC\anul4\LICENTA\Roxana\atnecilpp\exerc\physical+therapy+exercises+dataset\TVT\testing\s14\e7\template_times_long.txt</code>
+            </p>
+
+            <h3>Template times</h3>
+            <table class="dataframe template-table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>execution type</th>
+      <th>start</th>
+      <th>end</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td>65</td>
+      <td>1575</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>1625</td>
+      <td>2085</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>2150</td>
+      <td>3665</td>
+    </tr>
+  </tbody>
+</table>
+
+            <h3>Grafic segmentare</h3>
+            <img
+                src="imagini/s14_e7_long_standard.png"
+                alt="s14 / e7 / long / standard"
+            >
+        </section>
+        
+        <section class="segmentare-card">
+            <h2>s14 / e7 / scrt / standard</h2>
+
+            <p>
+                <strong>Fisier date:</strong><br>
+                <code>D:\Personal\FAKULTHA\AC\anul4\LICENTA\Roxana\atnecilpp\exerc\physical+therapy+exercises+dataset\TVT\testing\s14\e7\u2\ex7_scrt_bno055_20260617_182004_248754.txt</code>
+            </p>
+
+            <p>
+                <strong>Fisier template:</strong><br>
+                <code>D:\Personal\FAKULTHA\AC\anul4\LICENTA\Roxana\atnecilpp\exerc\physical+therapy+exercises+dataset\TVT\testing\s14\e7\template_times_scrt.txt</code>
+            </p>
+
+            <h3>Template times</h3>
+            <table class="dataframe template-table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>execution type</th>
+      <th>start</th>
+      <th>end</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td>62</td>
+      <td>552</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>626</td>
+      <td>766</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>848</td>
+      <td>1291</td>
+    </tr>
+  </tbody>
+</table>
+
+            <h3>Grafic segmentare</h3>
+            <img
+                src="imagini/s14_e7_scrt_standard.png"
+                alt="s14 / e7 / scrt / standard"
+            >
+        </section>
+        
+        <section class="segmentare-card">
+            <h2>s14 / e8 / long / standard</h2>
+
+            <p>
+                <strong>Fisier date:</strong><br>
+                <code>D:\Personal\FAKULTHA\AC\anul4\LICENTA\Roxana\atnecilpp\exerc\physical+therapy+exercises+dataset\TVT\testing\s14\e8\u2\ex8_long_bno055_20260617_184740_448857.txt</code>
+            </p>
+
+            <p>
+                <strong>Fisier template:</strong><br>
+                <code>D:\Personal\FAKULTHA\AC\anul4\LICENTA\Roxana\atnecilpp\exerc\physical+therapy+exercises+dataset\TVT\testing\s14\e8\template_times_long.txt</code>
+            </p>
+
+            <h3>Template times</h3>
+            <table class="dataframe template-table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>execution type</th>
+      <th>start</th>
+      <th>end</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td>92</td>
+      <td>1570</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>1638</td>
+      <td>2045</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>2158</td>
+      <td>3680</td>
+    </tr>
+  </tbody>
+</table>
+
+            <h3>Grafic segmentare</h3>
+            <img
+                src="imagini/s14_e8_long_standard.png"
+                alt="s14 / e8 / long / standard"
+            >
+        </section>
+        
+        <section class="segmentare-card">
+            <h2>s14 / e8 / scrt / standard</h2>
+
+            <p>
+                <strong>Fisier date:</strong><br>
+                <code>D:\Personal\FAKULTHA\AC\anul4\LICENTA\Roxana\atnecilpp\exerc\physical+therapy+exercises+dataset\TVT\testing\s14\e8\u2\ex8_scrt_bno055_20260617_182746_365845.txt</code>
+            </p>
+
+            <p>
+                <strong>Fisier template:</strong><br>
+                <code>D:\Personal\FAKULTHA\AC\anul4\LICENTA\Roxana\atnecilpp\exerc\physical+therapy+exercises+dataset\TVT\testing\s14\e8\template_times_scrt.txt</code>
+            </p>
+
+            <h3>Template times</h3>
+            <table class="dataframe template-table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>execution type</th>
+      <th>start</th>
+      <th>end</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td>47</td>
+      <td>595</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>642</td>
+      <td>757</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>817</td>
+      <td>1320</td>
+    </tr>
+  </tbody>
+</table>
+
+            <h3>Grafic segmentare</h3>
+            <img
+                src="imagini/s14_e8_scrt_standard.png"
+                alt="s14 / e8 / scrt / standard"
+            >
+        </section>
+        
+    </body>
+    </html>
+    
