@@ -10,6 +10,7 @@ import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 import ro.licenta.kinetolive.dto.LiveSensorBroadcastMessage;
 import ro.licenta.kinetolive.dto.SensorSampleMessage;
+import ro.licenta.kinetolive.service.DeviceControlService;
 import ro.licenta.kinetolive.service.LiveSessionBufferService;
 
 import java.time.LocalDateTime;
@@ -22,6 +23,7 @@ public class SensorWebSocketHandler extends TextWebSocketHandler {
 
     private final ObjectMapper objectMapper;
     private final LiveSessionBufferService liveSessionBufferService;
+    private final DeviceControlService deviceControlService;
 
     private final Set<WebSocketSession> connectedSessions = new CopyOnWriteArraySet<>();
 
@@ -44,6 +46,7 @@ public class SensorWebSocketHandler extends TextWebSocketHandler {
             );
 
             int bufferedSampleCount = liveSessionBufferService.addSample(sensorSample);
+            deviceControlService.recordSensorSample(sensorSample.sessionId());
 
             LiveSensorBroadcastMessage broadcastMessage = new LiveSensorBroadcastMessage(
                     "SENSOR_SAMPLE",

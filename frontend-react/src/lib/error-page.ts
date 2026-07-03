@@ -1,9 +1,9 @@
 export function renderErrorPage(): string {
   return `<!doctype html>
-<html lang="en">
+<html lang="ro">
   <head>
     <meta charset="utf-8" />
-    <title>This page didn't load</title>
+    <title>KinetoLive</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <style>
       body { font: 15px/1.5 system-ui, -apple-system, sans-serif; background: #fafafa; color: #111; display: grid; place-items: center; min-height: 100vh; margin: 0; padding: 1.5rem; }
@@ -18,13 +18,28 @@ export function renderErrorPage(): string {
   </head>
   <body>
     <div class="card">
-      <h1>This page didn't load</h1>
-      <p>Something went wrong on our end. You can try refreshing or head back home.</p>
+      <h1 id="title">Pagina nu s-a incarcat</h1>
+      <p id="message">A aparut o eroare. Poti reincarca pagina sau te poti intoarce acasa.</p>
       <div class="actions">
-        <button class="primary" onclick="location.reload()">Try again</button>
-        <a class="secondary" href="/">Go home</a>
+        <button id="retry" class="primary" onclick="location.reload()">Incearca din nou</button>
+        <a id="home" class="secondary" href="/">Acasa</a>
       </div>
     </div>
+    <script>
+      try {
+        var language = localStorage.getItem("kinetolive:language") === "en" ? "en" : "ro";
+        document.documentElement.lang = language;
+
+        if (language === "en") {
+          document.getElementById("title").textContent = "This page did not load";
+          document.getElementById("message").textContent = "Something went wrong. You can refresh the page or go back home.";
+          document.getElementById("retry").textContent = "Try again";
+          document.getElementById("home").textContent = "Go home";
+        }
+      } catch (error) {
+        // Pastreaza varianta implicita in romana
+      }
+    </script>
   </body>
 </html>`;
 }

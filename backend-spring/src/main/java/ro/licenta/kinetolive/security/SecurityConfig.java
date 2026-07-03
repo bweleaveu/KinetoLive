@@ -62,6 +62,13 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/login").permitAll()
                         .requestMatchers("/api/auth/register").permitAll()
 
+                        // Documentatie API. O pastram publica in mediul de dezvoltare
+                        // ca linkurile afisate la pornirea backend-ului sa poata fi deschise direct.
+                        .requestMatchers("/swagger-ui.html").permitAll()
+                        .requestMatchers("/swagger-ui/**").permitAll()
+                        .requestMatchers("/v3/api-docs").permitAll()
+                        .requestMatchers("/v3/api-docs/**").permitAll()
+
                         // Lista exercitiilor nu contine date sensibile si poate ramane publica
                         .requestMatchers(HttpMethod.GET, "/api/exercises").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/exercises/**").permitAll()

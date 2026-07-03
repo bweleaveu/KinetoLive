@@ -21,7 +21,7 @@ import { useAppLanguage } from "@/hooks/useAppLanguage";
 import { api, EXERCISE_FALLBACK, type Exercise } from "@/lib/api";
 
 export const Route = createFileRoute("/exercises")({
-  head: () => ({ meta: [{ title: "Exercises — KinetoLive" }] }),
+  head: () => ({ meta: [{ title: "KinetoLive" }] }),
   component: ExercisesPage,
 });
 
@@ -31,13 +31,15 @@ const SELECTED_EXERCISE_KEY = "kinetolive:selectedExercise";
 const EXERCISES_TEXT = {
   ro: {
     pageTitle: "Exercitii de recuperare",
+    browserTitle: "Exercitii — KinetoLive",
     pageDescription:
       "Exercitii folosite de KinetoLive pentru monitorizare live BNO055, segmentarea repetarilor si analiza calitatii executiei prin invatare automata.",
     refresh: "Reincarca",
     errorPrefix: "Nu s-au putut incarca exercitiile din Spring Boot:",
     errorSuffix: "Sunt afisate exercitiile locale de rezerva.",
     availableExercises: "Exercitii disponibile",
-    exerciseListHint: "Exercitiile 6, 7 si 8",
+    exerciseListHint: "Detectie automata + exercitiile 6, 7 si 8",
+    autoDetection: "Detectie automata",
     sensorStream: "Flux senzori",
     mlInput: "Date pentru invatare automata",
     axes: "6 axe",
@@ -69,13 +71,15 @@ const EXERCISES_TEXT = {
   },
   en: {
     pageTitle: "Rehabilitation Exercises",
+    browserTitle: "Exercises — KinetoLive",
     pageDescription:
       "Exercises used by KinetoLive for live BNO055 monitoring, repetition segmentation and machine learning-based execution quality analysis.",
     refresh: "Refresh",
     errorPrefix: "Could not load exercises from Spring Boot:",
     errorSuffix: "Showing local fallback exercises.",
     availableExercises: "Available exercises",
-    exerciseListHint: "Exercise 6, 7 and 8",
+    exerciseListHint: "Automatic detection + exercises 6, 7 and 8",
+    autoDetection: "Automatic detection",
     sensorStream: "Sensor stream",
     mlInput: "Machine learning input",
     axes: "6 axes",
@@ -114,6 +118,10 @@ function ExercisesPage() {
   const { language } = useAppLanguage();
 
   const text = EXERCISES_TEXT[language];
+
+  useEffect(() => {
+    document.title = text.browserTitle;
+  }, [text.browserTitle]);
 
   const [exercises, setExercises] = useState<Exercise[]>(EXERCISE_FALLBACK);
   const [loading, setLoading] = useState(true);
@@ -226,8 +234,13 @@ function ExercisesPage() {
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 2xl:grid-cols-2">
             {/* Afiseaza cardurile exercitiilor cu nume si descriere in functie de limba */}
             {activeExercises.map((exercise) => {
-              const exerciseName =
-                language === "ro"
+              const isAutomaticDetection = exercise.exerciseCode === 0;
+
+              const exerciseName = isAutomaticDetection
+                ? language === "ro"
+                  ? exercise.nameRo || exercise.nameEn || text.autoDetection
+                  : exercise.nameEn || exercise.nameRo || text.autoDetection
+                : language === "ro"
                   ? exercise.nameRo || exercise.nameEn || `Exercitiul ${exercise.exerciseCode}`
                   : exercise.nameEn || exercise.nameRo || `Exercise ${exercise.exerciseCode}`;
 
@@ -236,8 +249,9 @@ function ExercisesPage() {
                   ? exercise.descriptionRo || exercise.descriptionEn || ""
                   : exercise.descriptionEn || exercise.descriptionRo || "";
 
-              const exerciseLabel =
-                language === "ro"
+              const exerciseLabel = isAutomaticDetection
+                ? text.autoDetection
+                : language === "ro"
                   ? `Exercitiul ${exercise.exerciseCode}`
                   : `Exercise ${exercise.exerciseCode}`;
 

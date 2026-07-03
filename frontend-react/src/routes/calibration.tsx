@@ -20,7 +20,7 @@ import { api, type DeviceCalibrationStatus } from "@/lib/api";
 import { useAppLanguage } from "@/hooks/useAppLanguage";
 
 export const Route = createFileRoute("/calibration")({
-  head: () => ({ meta: [{ title: "Calibration — KinetoLive" }] }),
+  head: () => ({ meta: [{ title: "KinetoLive" }] }),
   component: CalibrationPage,
 });
 
@@ -29,6 +29,8 @@ const POLLING_INTERVAL_MS = 1000;
 const CALIBRATION_TEXT = {
   ro: {
     pageTitle: "Calibrare senzor",
+    browserTitle: "Calibrare senzor — KinetoLive",
+    locale: "ro-RO",
     pageDescription:
       "Calibreaza sistemul BNO055 sau foloseste profilul salvat in memoria nevolatila a ESP32.",
     statusTitle: "Status calibrare",
@@ -91,6 +93,8 @@ const CALIBRATION_TEXT = {
   },
   en: {
     pageTitle: "Sensor calibration",
+    browserTitle: "Sensor calibration — KinetoLive",
+    locale: "en-US",
     pageDescription:
       "Calibrate the BNO055 system or use the profile saved in the ESP32 non-volatile memory.",
     statusTitle: "Calibration status",
@@ -155,6 +159,10 @@ const CALIBRATION_TEXT = {
 function CalibrationPage() {
   const { language } = useAppLanguage();
   const text = CALIBRATION_TEXT[language];
+
+  useEffect(() => {
+    document.title = text.browserTitle;
+  }, [text.browserTitle]);
 
   const [status, setStatus] = useState<DeviceCalibrationStatus | null>(null);
   const [loading, setLoading] = useState(true);
@@ -281,7 +289,7 @@ function CalibrationPage() {
 
         <StatCard
           label={text.lastUpdate}
-          value={formatDateTime(status?.lastUpdatedAt, text.never)}
+          value={formatDateTime(status?.lastUpdatedAt, text.never, text.locale)}
           hint={loading ? text.actionRunning : statusMessage}
           icon={loading ? Loader2 : Gauge}
           tone={status?.usable ? "cyan" : "amber"}
@@ -445,9 +453,9 @@ function ProgressBlock({ label, value, hint }: { label: string; value: number; h
 }
 
 function StatusNotice({
-  status,
-  message,
-}: {
+                        status,
+                        message,
+                      }: {
   status: DeviceCalibrationStatus | null;
   message: string;
 }) {
@@ -531,10 +539,14 @@ function getCalibrationInstruction(
   return text.doneInstruction;
 }
 
-function formatDateTime(value: string | null | undefined, fallback: string) {
+function formatDateTime(
+  value: string | null | undefined,
+  fallback: string,
+  locale = "ro-RO",
+) {
   if (!value) {
     return fallback;
   }
 
-  return new Date(value).toLocaleString();
+  return new Date(value).toLocaleString(locale);
 }

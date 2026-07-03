@@ -115,6 +115,7 @@ const LIVE_SESSION_TEXT = {
     evaluatedExercise: "Exercitiu evaluat",
     modelDetectedExercise: "Exercitiu vazut de model",
     qualityModel: "Model calitate",
+    perRepetition: "Pe fiecare repetare",
     repetitionsTable: "Repetari detectate",
     segment: "Segment",
     classificationWindow: "Fereastra clasificare",
@@ -290,6 +291,7 @@ const LIVE_SESSION_TEXT = {
     evaluatedExercise: "Evaluated exercise",
     modelDetectedExercise: "Model-detected exercise",
     qualityModel: "Quality model",
+    perRepetition: "Per repetition",
     repetitionsTable: "Detected repetitions",
     segment: "Segment",
     classificationWindow: "Classification window",
@@ -870,46 +872,50 @@ function LiveSessionPage() {
         />
 
         <div className="min-w-0 space-y-3">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
-            <StatCard
-              label={text.currentSession}
-              value={sessionId ? `#${sessionId}` : text.notStarted}
-              hint={text.readyForLiveMonitoring}
-              icon={Radio}
-              tone="primary"
-            />
+          <div className="space-y-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              <StatCard
+                label={text.currentSession}
+                value={sessionId ? `#${sessionId}` : text.notStarted}
+                hint={text.readyForLiveMonitoring}
+                icon={Radio}
+                tone="primary"
+              />
 
-            <StatCard
-              label={text.selectedExercise}
-              value={selectedExerciseDisplayName}
-              hint={intended === 0 ? text.automaticDetection : selectedExerciseName}
-              icon={Dumbbell}
-              tone="cyan"
-            />
+              <StatCard
+                label={text.selectedExercise}
+                value={selectedExerciseDisplayName}
+                hint={intended === 0 ? text.automaticDetection : selectedExerciseName}
+                icon={Dumbbell}
+                tone="cyan"
+              />
 
-            <StatCard
-              label={text.selectedPatient}
-              value={selectedPatient?.fullName ?? text.noPatient}
-              hint={selectedPatient ? `ID ${selectedPatient.id}` : text.noSelectedPatient}
-              icon={UserRound}
-              tone="mint"
-            />
+              <StatCard
+                label={text.selectedPatient}
+                value={selectedPatient?.fullName ?? text.noPatient}
+                hint={selectedPatient ? `ID ${selectedPatient.id}` : text.noSelectedPatient}
+                icon={UserRound}
+                tone="mint"
+              />
+            </div>
 
-            <StatCard
-              label={text.connectionStatus}
-              value={connectionStatusLabel}
-              hint={text.liveDataStream}
-              icon={Wifi}
-              tone={ws.status === "open" ? "mint" : "amber"}
-            />
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <StatCard
+                label={text.connectionStatus}
+                value={connectionStatusLabel}
+                hint={text.liveDataStream}
+                icon={Wifi}
+                tone={ws.status === "open" ? "mint" : "amber"}
+              />
 
-            <StatCard
-              label={text.liveSamples}
-              value={ws.count}
-              hint={text.bufferedBySessionId}
-              icon={Activity}
-              tone="violet"
-            />
+              <StatCard
+                label={text.liveSamples}
+                value={ws.count}
+                hint={text.bufferedBySessionId}
+                icon={Activity}
+                tone="violet"
+              />
+            </div>
           </div>
 
           <SectionCard
@@ -1607,6 +1613,37 @@ function QualityFeedbackCard({
 }
 
 
+function getQualityModelExerciseCodes(result: MLAnalysisResult): number[] {
+  // Extrage modelele de calitate folosite pe repetari
+  const codes = new Set<number>();
+
+  for (const repetition of result.repetitions ?? []) {
+    if (typeof repetition.qualityModelExerciseCode === "number") {
+      codes.add(repetition.qualityModelExerciseCode);
+    }
+  }
+
+  return Array.from(codes).sort((a, b) => a - b);
+}
+
+function usesMixedQualityModels(result: MLAnalysisResult): boolean {
+  // Verifica daca analiza automata a folosit modele diferite pe repetari
+  return getQualityModelExerciseCodes(result).length > 1;
+}
+
+function formatQualityModelResult(
+  result: MLAnalysisResult,
+  text: LiveSessionText,
+): string {
+  // In modul automat, daca modelul vede exercitii diferite pe repetari,
+  // nu afisam un singur exercitiu dominant ca exercitiu evaluat.
+  if (result.analysisMode === "automatic" && usesMixedQualityModels(result)) {
+    return text.perRepetition;
+  }
+
+  return formatExerciseResult(result.qualityModelExerciseCode, text);
+}
+
 function AnalysisModeCard({
                             result,
                             text,
@@ -1636,7 +1673,7 @@ function AnalysisModeCard({
 
       <ResultMetric
         label={text.evaluatedExercise}
-        value={formatExerciseResult(result.qualityModelExerciseCode, text)}
+        value={formatQualityModelResult(result, text)}
         icon={Dumbbell}
       />
 
@@ -1670,7 +1707,7 @@ function RepetitionsTable({
           {text.repetitionsTable}
         </div>
         <div className="text-xs text-muted-foreground">
-          {text.qualityModel}: {formatExerciseResult(result.qualityModelExerciseCode, text)}
+          {text.qualityModel}: {formatQualityModelResult(result, text)}
         </div>
       </div>
 
@@ -1811,7 +1848,7 @@ function SegmentationDebugCard({
         />
         <InfoPill
           label={text.qualityModel}
-          value={formatExerciseResult(result.qualityModelExerciseCode, text)}
+          value={formatQualityModelResult(result, text)}
         />
       </div>
     </div>

@@ -13,6 +13,7 @@ import {
   getStoredToken,
   setStoredToken,
   type Doctor,
+  type DoctorProfilePayload,
 } from "@/lib/auth";
 
 type Status = "loading" | "authenticated" | "unauthenticated";
@@ -37,6 +38,7 @@ interface AuthContextValue {
   status: Status;
   login: (email: string, password: string) => Promise<void>;
   register: (fullName: string, email: string, password: string) => Promise<void>;
+  updateDoctorProfile: (payload: DoctorProfilePayload) => Promise<void>;
   logout: () => void;
 }
 
@@ -104,9 +106,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  const updateDoctorProfile = useCallback(
+    async (payload: DoctorProfilePayload) => {
+      const activeToken = token ?? getStoredToken();
+
+      if (!activeToken) {
+        throw new Error("Doctorul nu este autentificat.");
+      }
+
+      const res = await authApi.updateProfile(activeToken, payload);
+      setStoredToken(res.token);
+      setToken(res.token);
+      setDoctor(res.doctor);
+      setStatus("authenticated");
+    },
+    [token],
+  );
+
   return (
     <AuthContext.Provider
-      value={{ doctor, token, status, login, register, logout }}
+      value={{ doctor, token, status, login, register, updateDoctorProfile, logout }}
     >
       {children}
     </AuthContext.Provider>

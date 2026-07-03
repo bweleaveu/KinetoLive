@@ -6,6 +6,7 @@ import ro.licenta.kinetolive.dto.DeviceCalibrationReportRequest;
 import ro.licenta.kinetolive.dto.DeviceCalibrationStatusDto;
 import ro.licenta.kinetolive.dto.DeviceControlStateResponse;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -13,6 +14,7 @@ import java.util.concurrent.atomic.AtomicLong;
 public class DeviceCalibrationService {
 
     private static final int REQUIRED_STABLE_SAMPLES = 25;
+    private static final long DEVICE_REPORT_TIMEOUT_SECONDS = 8;
 
     private final AtomicLong commandSequence = new AtomicLong(0);
 
@@ -35,6 +37,7 @@ public class DeviceCalibrationService {
     private LocalDateTime lastUpdatedAt = null;
 
     public synchronized DeviceCalibrationStatusDto getStatus() {
+        expireStaleDeviceReportIfNeeded();
         return toStatusDto();
     }
 
@@ -91,6 +94,8 @@ public class DeviceCalibrationService {
             boolean streamingEnabled,
             Long sessionId
     ) {
+        expireStaleDeviceReportIfNeeded();
+
         return new DeviceControlStateResponse(
                 streamingEnabled,
                 sessionId,
@@ -151,6 +156,33 @@ public class DeviceCalibrationService {
         return toStatusDto();
     }
 
+
+    private void expireStaleDeviceReportIfNeeded() {
+        if (lastUpdatedAt == null) {
+            return;
+        }
+
+        long secondsSinceLastReport = Duration.between(lastUpdatedAt, LocalDateTime.now()).getSeconds();
+
+        if (secondsSinceLastReport <= DEVICE_REPORT_TIMEOUT_SECONDS) {
+            return;
+        }
+
+        calSys = 0;
+        calAcc = 0;
+        calGyr = 0;
+        calMag = 0;
+        calibrationSaved = false;
+        monitoringEnabled = false;
+        restartRequired = false;
+        stableSamples = 0;
+        pendingCommandId = null;
+        pendingCommand = null;
+        lastUpdatedAt = null;
+        message = "Astept raportarea statusului de calibrare de la ESP32.";
+        messageType = "warning";
+    }
+
     private void handleCommandResult(DeviceCalibrationReportRequest request) {
         boolean success = Boolean.TRUE.equals(request.success());
         String command = request.command() != null ? request.command() : pendingCommand;
@@ -164,16 +196,10 @@ public class DeviceCalibrationService {
             messageType = "success";
         } else if (success && "CLEAR_CAL".equals(command)) {
             calibrationSaved = false;
-            restartRequired = false;
+            restartRequired = true;
             monitoringEnabled = false;
             stableSamples = 0;
-
-            calSys = 0;
-            calAcc = 0;
-            calGyr = 0;
-            calMag = 0;
-
-            message = "Calibrarea salvata a fost stearsa. Senzorul a fost resetat si poate fi recalibrat.";
+            message = "Calibrarea salvata a fost stearsa. Repornește sau reconecteaza ESP32 inainte de o noua calibrare.";
             messageType = "success";
         } else if (success && "USE_SAVED_CAL".equals(command)) {
             calibrationSaved = true;

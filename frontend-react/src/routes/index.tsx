@@ -38,10 +38,15 @@ import {
 import { SectionCard, StatCard } from "@/components/StatCard";
 import { useAppLanguage } from "@/hooks/useAppLanguage";
 import { useSelectedPatient } from "@/hooks/useSelectedPatient";
-import { api, qualityBadgeClass, type TherapySession } from "@/lib/api";
+import {
+  api,
+  qualityBadgeClass,
+  type MlServiceStatus,
+  type TherapySession,
+} from "@/lib/api";
 
 export const Route = createFileRoute("/")({
-  head: () => ({ meta: [{ title: "Dashboard — KinetoLive" }] }),
+  head: () => ({ meta: [{ title: "KinetoLive" }] }),
   component: DashboardPage,
 });
 
@@ -76,7 +81,7 @@ const DASHBOARD_TEXT = {
     noSelectedPatient: "Nu exista pacient selectat. Adauga sau selecteaza un pacient din sectiunea Pacienti.",
     totalSessions: "Total sesiuni",
     completed: "finalizate",
-    started: "pornite",
+    started: "nefinalizate",
     lastExercise: "Ultimul exercitiu",
     noSession: "Nicio sesiune",
     lastQuality: "Ultima calitate",
@@ -91,6 +96,11 @@ const DASHBOARD_TEXT = {
     qualityClassifier: "Clasificator calitate",
     backendStatus: "Status backend",
     springBootPort: "Spring Boot · port 8080",
+    mlServiceStatus: "Status ML Service",
+    fastApiPort: "FastAPI · port 8000",
+    modelsLoaded: "modele incarcate",
+    modelsMissing: "modele indisponibile",
+    featuresLabel: "trasaturi",
     sessionDuration: "Durata sesiunilor",
     sessionDurationSubtitle: "Ultimele sesiuni, in secunde",
     durationLabel: "Durata",
@@ -127,8 +137,10 @@ const DASHBOARD_TEXT = {
     loading: "Se incarca...",
     noDataYet: "Nu exista date inca",
     exerciseWord: "Exercitiul",
+    automaticDetection: "Detectie automata",
     statusCompleted: "FINALIZATA",
-    statusStarted: "PORNITA",
+    statusStarted: "NEFINALIZATA",
+    statusFailed: "ESUATA",
     statusOther: "NEFINALIZATA",
     qualityNormal: "Normal",
     qualityRapid: "Rapid",
@@ -159,7 +171,7 @@ const DASHBOARD_TEXT = {
     noSelectedPatient: "No patient selected. Add or select a patient from the Patients section.",
     totalSessions: "Total sessions",
     completed: "completed",
-    started: "started",
+    started: "unfinished",
     lastExercise: "Last exercise",
     noSession: "No session",
     lastQuality: "Last quality",
@@ -174,6 +186,11 @@ const DASHBOARD_TEXT = {
     qualityClassifier: "Quality classifier",
     backendStatus: "Backend status",
     springBootPort: "Spring Boot · port 8080",
+    mlServiceStatus: "ML service status",
+    fastApiPort: "FastAPI · port 8000",
+    modelsLoaded: "models loaded",
+    modelsMissing: "models unavailable",
+    featuresLabel: "features",
     sessionDuration: "Session duration",
     sessionDurationSubtitle: "Last sessions, in seconds",
     durationLabel: "Duration",
@@ -207,8 +224,10 @@ const DASHBOARD_TEXT = {
     loading: "Loading...",
     noDataYet: "No data yet",
     exerciseWord: "Exercise",
+    automaticDetection: "Automatic detection",
     statusCompleted: "COMPLETED",
-    statusStarted: "STARTED",
+    statusStarted: "UNFINISHED",
+    statusFailed: "FAILED",
     statusOther: "NOT COMPLETED",
     qualityNormal: "Normal",
     qualityRapid: "Rapid",
@@ -231,6 +250,11 @@ function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [backendOnline, setBackendOnline] = useState<boolean | null>(null);
+  const [mlServiceStatus, setMlServiceStatus] = useState<MlServiceStatus | null>(null);
+
+  useEffect(() => {
+    document.title = language === "ro" ? "Dashboard — KinetoLive" : "Dashboard — KinetoLive";
+  }, [language]);
 
   useEffect(() => {
     // Incarca datele principale pentru Dashboard
@@ -253,6 +277,21 @@ function DashboardPage() {
 
         setBackendOnline(true);
 
+        try {
+          const mlStatus = await api.mlStatus();
+
+          if (active) {
+            setMlServiceStatus(mlStatus);
+          }
+        } catch {
+          if (active) {
+            setMlServiceStatus({
+              online: false,
+              message: "ML service unavailable",
+            });
+          }
+        }
+
         if (!selectedPatientId) {
           setSessions([]);
           return;
@@ -271,6 +310,7 @@ function DashboardPage() {
         }
 
         setBackendOnline(false);
+        setMlServiceStatus({ online: false, message: "Backend unavailable" });
         setError((caughtError as Error).message);
       } finally {
         if (active) {
@@ -553,6 +593,20 @@ function DashboardPage() {
           hint={text.springBootPort}
           icon={backendOnline ? Server : AlertCircle}
           tone={backendOnline ? "mint" : "rose"}
+        />
+
+        <StatCard
+          label={text.mlServiceStatus}
+          value={
+            mlServiceStatus === null
+              ? `${text.checking}...`
+              : mlServiceStatus.online
+                ? text.online
+                : text.offline
+          }
+          hint={formatMlServiceHint(mlServiceStatus, text)}
+          icon={mlServiceStatus?.online ? Cpu : AlertCircle}
+          tone={mlServiceStatus?.online ? "mint" : "rose"}
         />
       </div>
 
@@ -947,7 +1001,11 @@ function formatExerciseName(
   text: DashboardText,
 ): string {
   // Formateaza numele exercitiului in functie de limba
-  if (!exerciseCode) {
+  if (exerciseCode === 0) {
+    return text.automaticDetection;
+  }
+
+  if (typeof exerciseCode !== "number") {
     return "—";
   }
 
@@ -978,9 +1036,33 @@ function formatStatus(status: string, text: DashboardText): string {
       return text.statusCompleted;
     case "STARTED":
       return text.statusStarted;
+    case "FAILED":
+      return text.statusFailed;
     default:
       return text.statusOther;
   }
+}
+
+function formatMlServiceHint(
+  status: MlServiceStatus | null,
+  text: DashboardText,
+): string {
+  // Formateaza statusul microserviciului ML pentru Dashboard
+  if (!status) {
+    return text.fastApiPort;
+  }
+
+  if (!status.online) {
+    return status.message ?? text.fastApiPort;
+  }
+
+  const modelStatus = status.modelsLoaded ? text.modelsLoaded : text.modelsMissing;
+  const featureText =
+    typeof status.featureCount === "number"
+      ? ` · ${status.featureCount} ${text.featuresLabel}`
+      : "";
+
+  return `${modelStatus}${featureText}`;
 }
 
 function getQualityColor(value: string): string {
