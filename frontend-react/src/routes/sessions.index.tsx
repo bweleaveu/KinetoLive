@@ -27,11 +27,11 @@ import {
 import { getDoctorSettings } from "@/lib/doctorSettings";
 
 export const Route = createFileRoute("/sessions/")({
-  head: () => ({ meta: [{ title: "KinetoLive" }] }),
+  head: () => ({ meta: [{ title: "Sessions — KinetoLive" }] }),
   component: SessionsPage,
 });
 
-const STATUS_FILTERS = ["ALL", "STARTED", "COMPLETED"] as const;
+const STATUS_FILTERS = ["ALL", "STARTED", "COMPLETED", "FAILED"] as const;
 
 // Texte pentru pagina Sessions in romana si engleza
 const SESSIONS_TEXT = {
@@ -76,11 +76,6 @@ const SESSIONS_TEXT = {
     tableConfidence: "Incredere",
     tableActions: "Actiuni",
     exercise: "Exercitiul",
-    locale: "ro-RO",
-    htmlLanguage: "ro",
-    browserTitle: "Istoric sesiuni — KinetoLive",
-    automaticDetection: "Detectie automata",
-    automaticDetectionShort: "Detectie auto",
     view: "Vezi",
     deleteSession: "Sterge",
     deletingSession: "Se sterge...",
@@ -111,6 +106,7 @@ const SESSIONS_TEXT = {
       ALL: "Toate statusurile",
       STARTED: "Nefinalizata",
       COMPLETED: "Finalizata",
+      FAILED: "Esuata",
     },
   },
   en: {
@@ -154,11 +150,6 @@ const SESSIONS_TEXT = {
     tableConfidence: "Confidence",
     tableActions: "Actions",
     exercise: "Exercise",
-    locale: "en-US",
-    htmlLanguage: "en",
-    browserTitle: "Sessions history — KinetoLive",
-    automaticDetection: "Automatic detection",
-    automaticDetectionShort: "Auto detection",
     view: "View",
     deleteSession: "Delete",
     deletingSession: "Deleting...",
@@ -189,6 +180,7 @@ const SESSIONS_TEXT = {
       ALL: "All statuses",
       STARTED: "Unfinished",
       COMPLETED: "Completed",
+      FAILED: "Failed",
     },
   },
 } as const;
@@ -197,10 +189,6 @@ function SessionsPage() {
   const { language } = useAppLanguage();
   const text = SESSIONS_TEXT[language];
   const { selectedPatientId, loading: patientLoading } = useSelectedPatient();
-
-  useEffect(() => {
-    document.title = text.browserTitle;
-  }, [text.browserTitle]);
 
   const [sessions, setSessions] = useState<TherapySession[]>([]);
   const [loading, setLoading] = useState(true);
@@ -458,6 +446,7 @@ function SessionsPage() {
               <option value="ALL">{text.allStatuses}</option>
               <option value="STARTED">{text.statusValues.STARTED}</option>
               <option value="COMPLETED">{text.statusValues.COMPLETED}</option>
+              <option value="FAILED">{text.statusValues.FAILED}</option>
             </select>
           </div>
         </div>
@@ -495,14 +484,14 @@ function SessionsPage() {
                         <span className="font-medium text-foreground/80">
                           {text.tableStarted}:
                         </span>{" "}
-                        {formatDateTime(session.startedAt, text.locale)}
+                        {formatDateTime(session.startedAt)}
                       </span>
                       <span className="hidden h-1 w-1 rounded-full bg-muted-foreground/50 sm:block" />
                       <span className="text-xs text-muted-foreground">
                         <span className="font-medium text-foreground/80">
                           {text.tableEnded}:
                         </span>{" "}
-                        {formatDateTime(session.endedAt, text.locale)}
+                        {formatDateTime(session.endedAt)}
                       </span>
                     </div>
                   </div>
@@ -701,13 +690,13 @@ function round(value: number, decimals = 0): number {
   return Math.round(value * factor) / factor;
 }
 
-function formatDateTime(value?: string | null, locale = "ro-RO"): string {
-  // Formateaza data si ora unei sesiuni in limba selectata
+function formatDateTime(value?: string | null): string {
+  // Formateaza data si ora unei sesiuni
   if (!value) {
     return "—";
   }
 
-  return new Date(value).toLocaleString(locale);
+  return new Date(value).toLocaleString();
 }
 
 function formatStatus(
@@ -729,7 +718,11 @@ function formatExerciseLabel(
   }
 
   if (exerciseCode === 0) {
-    return short ? text.automaticDetectionShort : text.automaticDetection;
+    if (text.exportReport === "Export report") {
+      return short ? "Auto detection" : "Automatic detection";
+    }
+
+    return short ? "Detectie auto" : "Detectie automata";
   }
 
   return `${text.exercise} ${exerciseCode}`;
@@ -787,7 +780,7 @@ function buildSessionReportHtml(
   const quality = session.qualityName
     ? formatQualityName(session.qualityName, text.qualityValues)
     : "—";
-  const htmlLanguage = text.htmlLanguage;
+  const htmlLanguage = text.exportReport === "Export report" ? "en" : "ro";
 
   return `<!doctype html>
 <html lang="${htmlLanguage}">
@@ -912,8 +905,8 @@ function buildSessionReportHtml(
         ${reportField(text.tableSession, `#${session.id}`)}
         ${reportField(text.patient, session.patientName ?? `${text.patient} ${session.patientId}`)}
         ${reportField(text.tableStatus, formatStatus(session.status, text.statusValues))}
-        ${reportField(text.tableStarted, formatDateTime(session.startedAt, text.locale))}
-        ${reportField(text.tableEnded, formatDateTime(session.endedAt, text.locale))}
+        ${reportField(text.tableStarted, formatDateTime(session.startedAt))}
+        ${reportField(text.tableEnded, formatDateTime(session.endedAt))}
       </article>
 
       <article class="card">

@@ -12,6 +12,7 @@ import ro.licenta.kinetolive.entity.enums.SessionStatus;
 import ro.licenta.kinetolive.entity.enums.UserRole;
 import ro.licenta.kinetolive.repository.*;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -175,6 +176,37 @@ public class TherapySessionService {
         repetitionResultRepository.deleteAll(existingRepetitions);
         liveSessionBufferService.clearSession(sessionId);
         therapySessionRepository.delete(therapySession);
+    }
+
+    @Transactional
+    public boolean failStartedSession(Long sessionId, String reason) {
+        TherapySession therapySession = therapySessionRepository.findById(sessionId)
+                .orElse(null);
+
+        if (therapySession == null || therapySession.getStatus() != SessionStatus.STARTED) {
+            return false;
+        }
+
+        LocalDateTime endedAt = LocalDateTime.now();
+
+        therapySession.setStatus(SessionStatus.FAILED);
+        therapySession.setEndedAt(endedAt);
+        therapySession.setSampleCount(liveSessionBufferService.getSampleCount(sessionId));
+        therapySession.setRepetitionCount(null);
+        therapySession.setExerciseConfidence(null);
+        therapySession.setQualityCode(null);
+        therapySession.setQualityName(null);
+        therapySession.setQualityConfidence(null);
+        therapySession.setNotes(reason);
+
+        if (therapySession.getStartedAt() != null) {
+            long seconds = Duration.between(therapySession.getStartedAt(), endedAt).toSeconds();
+            therapySession.setDurationSeconds((double) Math.max(seconds, 0));
+        }
+
+        therapySessionRepository.save(therapySession);
+
+        return true;
     }
 
     private PatientProfile getOwnedPatient(String doctorEmail, Long patientId) {

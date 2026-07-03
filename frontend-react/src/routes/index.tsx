@@ -140,6 +140,7 @@ const DASHBOARD_TEXT = {
     automaticDetection: "Detectie automata",
     statusCompleted: "FINALIZATA",
     statusStarted: "NEFINALIZATA",
+    statusFailed: "ESUATA",
     statusOther: "NEFINALIZATA",
     qualityNormal: "Normal",
     qualityRapid: "Rapid",
@@ -226,6 +227,7 @@ const DASHBOARD_TEXT = {
     automaticDetection: "Automatic detection",
     statusCompleted: "COMPLETED",
     statusStarted: "UNFINISHED",
+    statusFailed: "FAILED",
     statusOther: "NOT COMPLETED",
     qualityNormal: "Normal",
     qualityRapid: "Rapid",
@@ -1034,6 +1036,8 @@ function formatStatus(status: string, text: DashboardText): string {
       return text.statusCompleted;
     case "STARTED":
       return text.statusStarted;
+    case "FAILED":
+      return text.statusFailed;
     default:
       return text.statusOther;
   }
