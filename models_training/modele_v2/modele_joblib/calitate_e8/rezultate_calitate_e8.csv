@@ -1,0 +1,5 @@
+model_name,validation_accuracy,validation_precision_macro,validation_recall_macro,validation_f1_macro,test_accuracy,test_precision_macro,test_recall_macro,test_f1_macro,combined_f1_macro,combined_accuracy
+random_forest,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0
+extra_trees,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0
+svm_rbf,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0
+logistic_regression,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0

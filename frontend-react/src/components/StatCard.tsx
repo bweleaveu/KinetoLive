@@ -2,12 +2,12 @@ import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 export function StatCard({
-  label,
-  value,
-  hint,
-  icon: Icon,
-  tone = "primary",
-}: {
+                           label,
+                           value,
+                           hint,
+                           icon: Icon,
+                           tone = "primary",
+                         }: {
   label: string;
   value: ReactNode;
   hint?: ReactNode;
@@ -24,19 +24,19 @@ export function StatCard({
   };
   const color = toneMap[tone];
   return (
-    <div className="card-soft p-5">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</div>
-          <div className="mt-2 truncate text-2xl font-semibold text-foreground">{value}</div>
-          {hint && <div className="mt-1 text-xs text-muted-foreground">{hint}</div>}
+    <div className="card-soft flex h-[120px] overflow-hidden p-4">
+      <div className="flex w-full items-start justify-between gap-3">
+        <div className="flex min-w-0 flex-col">
+          <div className="line-clamp-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</div>
+          <div className="mt-1.5 truncate text-2xl font-semibold text-foreground">{value}</div>
+          {hint && <div className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{hint}</div>}
         </div>
         {Icon && (
           <div
-            className="grid h-10 w-10 shrink-0 place-items-center rounded-xl"
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-xl"
             style={{ background: `color-mix(in oklab, ${color} 15%, transparent)`, color }}
           >
-            <Icon className="h-5 w-5" />
+            <Icon className="h-4 w-4" />
           </div>
         )}
       </div>
@@ -45,12 +45,12 @@ export function StatCard({
 }
 
 export function SectionCard({
-  title,
-  subtitle,
-  action,
-  children,
-  className = "",
-}: {
+                              title,
+                              subtitle,
+                              action,
+                              children,
+                              className = "",
+                            }: {
   title: string;
   subtitle?: string;
   action?: ReactNode;

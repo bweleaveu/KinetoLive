@@ -14,7 +14,6 @@ import {
   ListChecks,
   Radio,
   Repeat,
-  Server,
   Timer,
   TrendingUp,
   UsersRound,
@@ -88,19 +87,14 @@ const DASHBOARD_TEXT = {
     noAnalysisYet: "Nicio analiza inca",
     totalRepetitions: "Total repetari",
     repetitionsHint: "Detectate prin segmentare automata",
+    failedSessions: "Sesiuni esuate",
+    failedSessionsHint: "Intreruperi detectate automat",
     avgDuration: "Durata medie",
     completedSessions: "Sesiuni finalizate",
     avgExerciseConfidence: "Incredere medie exercitiu",
     exerciseClassifier: "Clasificator exercitii",
     avgQualityConfidence: "Incredere medie calitate",
     qualityClassifier: "Clasificator calitate",
-    backendStatus: "Status backend",
-    springBootPort: "Spring Boot · port 8080",
-    mlServiceStatus: "Status ML Service",
-    fastApiPort: "FastAPI · port 8000",
-    modelsLoaded: "modele incarcate",
-    modelsMissing: "modele indisponibile",
-    featuresLabel: "trasaturi",
     sessionDuration: "Durata sesiunilor",
     sessionDurationSubtitle: "Ultimele sesiuni, in secunde",
     durationLabel: "Durata",
@@ -178,19 +172,14 @@ const DASHBOARD_TEXT = {
     noAnalysisYet: "No analysis yet",
     totalRepetitions: "Total repetitions",
     repetitionsHint: "Detected by machine learning segmentation",
+    failedSessions: "Failed sessions",
+    failedSessionsHint: "Automatically detected interruptions",
     avgDuration: "Avg duration",
     completedSessions: "Completed sessions",
     avgExerciseConfidence: "Avg exercise confidence",
     exerciseClassifier: "Exercise classifier",
     avgQualityConfidence: "Avg quality confidence",
     qualityClassifier: "Quality classifier",
-    backendStatus: "Backend status",
-    springBootPort: "Spring Boot · port 8080",
-    mlServiceStatus: "ML service status",
-    fastApiPort: "FastAPI · port 8000",
-    modelsLoaded: "models loaded",
-    modelsMissing: "models unavailable",
-    featuresLabel: "features",
     sessionDuration: "Session duration",
     sessionDurationSubtitle: "Last sessions, in seconds",
     durationLabel: "Duration",
@@ -335,6 +324,9 @@ function DashboardPage() {
     const startedSessions = sessions.filter(
       (session) => session.status === "STARTED",
     );
+    const failedSessions = sessions.filter(
+      (session) => session.status === "FAILED",
+    );
 
     const totalRepetitions = sessions.reduce(
       (sum, session) => sum + (session.repetitionCount ?? 0),
@@ -360,6 +352,7 @@ function DashboardPage() {
       totalSessions,
       completedSessions: completedSessions.length,
       startedSessions: startedSessions.length,
+      failedSessions: failedSessions.length,
       totalRepetitions,
       averageDuration,
       averageExerciseConfidence,
@@ -466,13 +459,32 @@ function DashboardPage() {
           </p>
         </div>
 
-        <div className="inline-flex w-fit items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm text-muted-foreground">
-          <span
-            className={`h-2 w-2 rounded-full ${
-              backendOnline ? "bg-[color:var(--mint)]" : "bg-[color:var(--amber)]"
-            }`}
-          />
-          {text.backend} {backendOnline ? text.online : backendOnline === false ? text.offline : text.checking}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="inline-flex w-fit items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm text-muted-foreground">
+            <span
+              className={`h-2 w-2 rounded-full ${
+                backendOnline
+                  ? "bg-[color:var(--mint)]"
+                  : backendOnline === false
+                    ? "bg-[color:var(--rose)]"
+                    : "bg-[color:var(--amber)]"
+              }`}
+            />
+            {text.backend} {backendOnline ? text.online : backendOnline === false ? text.offline : text.checking}
+          </div>
+
+          <div className="inline-flex w-fit items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm text-muted-foreground">
+            <span
+              className={`h-2 w-2 rounded-full ${
+                mlServiceStatus?.online
+                  ? "bg-[color:var(--mint)]"
+                  : mlServiceStatus === null
+                    ? "bg-[color:var(--amber)]"
+                    : "bg-[color:var(--rose)]"
+              }`}
+            />
+            ML {mlServiceStatus?.online ? text.online : mlServiceStatus === null ? text.checking : text.offline}
+          </div>
         </div>
       </div>
 
@@ -582,31 +594,11 @@ function DashboardPage() {
         />
 
         <StatCard
-          label={text.backendStatus}
-          value={
-            backendOnline === null
-              ? `${text.checking}...`
-              : backendOnline
-                ? text.online
-                : text.offline
-          }
-          hint={text.springBootPort}
-          icon={backendOnline ? Server : AlertCircle}
-          tone={backendOnline ? "mint" : "rose"}
-        />
-
-        <StatCard
-          label={text.mlServiceStatus}
-          value={
-            mlServiceStatus === null
-              ? `${text.checking}...`
-              : mlServiceStatus.online
-                ? text.online
-                : text.offline
-          }
-          hint={formatMlServiceHint(mlServiceStatus, text)}
-          icon={mlServiceStatus?.online ? Cpu : AlertCircle}
-          tone={mlServiceStatus?.online ? "mint" : "rose"}
+          label={text.failedSessions}
+          value={stats.failedSessions}
+          hint={text.failedSessionsHint}
+          icon={AlertCircle}
+          tone="rose"
         />
       </div>
 
@@ -1041,28 +1033,6 @@ function formatStatus(status: string, text: DashboardText): string {
     default:
       return text.statusOther;
   }
-}
-
-function formatMlServiceHint(
-  status: MlServiceStatus | null,
-  text: DashboardText,
-): string {
-  // Formateaza statusul microserviciului ML pentru Dashboard
-  if (!status) {
-    return text.fastApiPort;
-  }
-
-  if (!status.online) {
-    return status.message ?? text.fastApiPort;
-  }
-
-  const modelStatus = status.modelsLoaded ? text.modelsLoaded : text.modelsMissing;
-  const featureText =
-    typeof status.featureCount === "number"
-      ? ` · ${status.featureCount} ${text.featuresLabel}`
-      : "";
-
-  return `${modelStatus}${featureText}`;
 }
 
 function getQualityColor(value: string): string {
