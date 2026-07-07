@@ -227,6 +227,8 @@ const DASHBOARD_TEXT = {
 
 type DashboardText = (typeof DASHBOARD_TEXT)[keyof typeof DASHBOARD_TEXT];
 
+const ML_STATUS_REFRESH_MS = 3000;
+
 function DashboardPage() {
   const { language } = useAppLanguage();
   const { status: authStatus, token } = useAuth();
@@ -320,6 +322,44 @@ function DashboardPage() {
       active = false;
     };
   }, [authStatus, token, patientLoading, selectedPatientId]);
+
+  useEffect(() => {
+    let active = true;
+
+    async function refreshMlServiceStatus() {
+      if (authStatus !== "authenticated" || !token) {
+        setMlServiceStatus(null);
+        return;
+      }
+
+      try {
+        const mlStatus = await api.mlStatus();
+
+        if (active) {
+          setMlServiceStatus(mlStatus);
+        }
+      } catch {
+        if (active) {
+          setMlServiceStatus({
+            online: false,
+            message: "ML service unavailable",
+          });
+        }
+      }
+    }
+
+    refreshMlServiceStatus();
+
+    const intervalId = window.setInterval(
+      refreshMlServiceStatus,
+      ML_STATUS_REFRESH_MS,
+    );
+
+    return () => {
+      active = false;
+      window.clearInterval(intervalId);
+    };
+  }, [authStatus, token]);
 
   const stats = useMemo(() => {
     // Calculeaza indicatorii principali pentru Dashboard
