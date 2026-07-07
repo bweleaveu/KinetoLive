@@ -26,6 +26,7 @@ const TEXT = {
     emailInvalid: "Introdu o adresa de email valida.",
     passwordRequired: "Completeaza parola.",
     passwordTooShort: "Parola trebuie sa aiba cel putin 6 caractere.",
+    backendUnavailable: "Backend-ul este oprit. Porneste serverul si incearca din nou.",
   },
   en: {
     title: "Welcome back",
@@ -41,11 +42,13 @@ const TEXT = {
     emailInvalid: "Enter a valid email address.",
     passwordRequired: "Enter your password.",
     passwordTooShort: "Password must have at least 6 characters.",
+    backendUnavailable: "The backend server is offline. Start it and try again.",
   },
 } as const;
 
 type LoginErrorCode =
   | "invalidCredentials"
+  | "backendUnavailable"
   | "emailRequired"
   | "emailInvalid"
   | "passwordRequired"
@@ -81,8 +84,8 @@ function LoginPage() {
     try {
       await login(email, password);
       navigate({ to: "/", replace: true });
-    } catch {
-      setErrorCode("invalidCredentials");
+    } catch (err) {
+      setErrorCode(getLoginErrorCode(err));
     } finally {
       setSubmitting(false);
     }
@@ -180,6 +183,27 @@ function validateLoginForm(email: string, password: string): LoginErrorCode | nu
   return null;
 }
 
+function getLoginErrorCode(err: unknown): LoginErrorCode {
+  if (isBackendUnavailableError(err)) {
+    return "backendUnavailable";
+  }
+
+  return "invalidCredentials";
+}
+
+function isBackendUnavailableError(err: unknown): boolean {
+  const message = err instanceof Error ? err.message.toLowerCase() : "";
+
+  return (
+    err instanceof TypeError ||
+    message.includes("failed to fetch") ||
+    message.includes("networkerror") ||
+    message.includes("network request failed") ||
+    message.includes("load failed") ||
+    message.includes("connection refused")
+  );
+}
+
 function getLoginErrorMessage(
   errorCode: LoginErrorCode,
   text: (typeof TEXT)[keyof typeof TEXT],
@@ -193,6 +217,8 @@ function getLoginErrorMessage(
       return text.passwordRequired;
     case "passwordTooShort":
       return text.passwordTooShort;
+    case "backendUnavailable":
+      return text.backendUnavailable;
     case "invalidCredentials":
     default:
       return text.error;

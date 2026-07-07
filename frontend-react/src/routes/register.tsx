@@ -29,6 +29,7 @@ const TEXT = {
     passwordRequired: "Completeaza parola.",
     passwordTooShort: "Parola trebuie sa aiba cel putin 6 caractere.",
     emailAlreadyExists: "Exista deja un cont cu acest email.",
+    backendUnavailable: "Backend-ul este oprit. Porneste serverul si incearca din nou.",
   },
   en: {
     title: "Create a doctor account",
@@ -47,10 +48,14 @@ const TEXT = {
     passwordRequired: "Enter your password.",
     passwordTooShort: "Password must have at least 6 characters.",
     emailAlreadyExists: "An account with this email already exists.",
+    backendUnavailable: "The backend server is offline. Start it and try again.",
   },
 } as const;
 
-type RegisterServerErrorCode = "emailAlreadyExists" | "generic";
+type RegisterServerErrorCode =
+  | "emailAlreadyExists"
+  | "backendUnavailable"
+  | "generic";
 
 function RegisterPage() {
   const { register, status } = useAuth();
@@ -229,6 +234,10 @@ function validateRegisterForm(
 }
 
 function getRegisterErrorCode(err: unknown): RegisterServerErrorCode {
+  if (isBackendUnavailableError(err)) {
+    return "backendUnavailable";
+  }
+
   const message = err instanceof Error ? err.message : "";
   const normalizedMessage = message.toLowerCase();
 
@@ -244,12 +253,29 @@ function getRegisterErrorCode(err: unknown): RegisterServerErrorCode {
   return "generic";
 }
 
+function isBackendUnavailableError(err: unknown): boolean {
+  const message = err instanceof Error ? err.message.toLowerCase() : "";
+
+  return (
+    err instanceof TypeError ||
+    message.includes("failed to fetch") ||
+    message.includes("networkerror") ||
+    message.includes("network request failed") ||
+    message.includes("load failed") ||
+    message.includes("connection refused")
+  );
+}
+
 function getRegisterErrorMessage(
   errorCode: RegisterServerErrorCode,
   text: (typeof TEXT)[keyof typeof TEXT],
 ): string {
   if (errorCode === "emailAlreadyExists") {
     return text.emailAlreadyExists;
+  }
+
+  if (errorCode === "backendUnavailable") {
+    return text.backendUnavailable;
   }
 
   return text.error;
