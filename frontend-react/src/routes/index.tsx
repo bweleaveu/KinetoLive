@@ -227,7 +227,9 @@ const DASHBOARD_TEXT = {
 
 type DashboardText = (typeof DASHBOARD_TEXT)[keyof typeof DASHBOARD_TEXT];
 
-const ML_STATUS_REFRESH_MS = 3000;
+const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:8080";
+const SERVICE_STATUS_REFRESH_MS = 3000;
+const SERVICE_STATUS_TIMEOUT_MS = 1500;
 
 function DashboardPage() {
   const { language } = useAppLanguage();
@@ -266,7 +268,7 @@ function DashboardPage() {
       setError(null);
 
       try {
-        await api.health();
+        await checkBackendHealth();
 
         if (!active) {
           return;
@@ -326,9 +328,30 @@ function DashboardPage() {
   useEffect(() => {
     let active = true;
 
-    async function refreshMlServiceStatus() {
+    async function refreshServiceStatus() {
       if (authStatus !== "authenticated" || !token) {
+        setBackendOnline(null);
         setMlServiceStatus(null);
+        return;
+      }
+
+      try {
+        await checkBackendHealth();
+
+        if (!active) {
+          return;
+        }
+
+        setBackendOnline(true);
+      } catch {
+        if (active) {
+          setBackendOnline(false);
+          setMlServiceStatus({
+            online: false,
+            message: "Backend unavailable",
+          });
+        }
+
         return;
       }
 
@@ -348,11 +371,11 @@ function DashboardPage() {
       }
     }
 
-    refreshMlServiceStatus();
+    refreshServiceStatus();
 
     const intervalId = window.setInterval(
-      refreshMlServiceStatus,
-      ML_STATUS_REFRESH_MS,
+      refreshServiceStatus,
+      SERVICE_STATUS_REFRESH_MS,
     );
 
     return () => {
@@ -984,6 +1007,28 @@ const tooltipLabelStyle = {
 const tooltipItemStyle = {
   color: "var(--popover-foreground)",
 } as const;
+
+async function checkBackendHealth(): Promise<void> {
+  // Verifica backend-ul fara cache si cu timeout scurt pentru statusul live.
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(
+    () => controller.abort(),
+    SERVICE_STATUS_TIMEOUT_MS,
+  );
+
+  try {
+    const response = await fetch(`${API_BASE}/api/health`, {
+      cache: "no-store",
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      throw new Error(`${response.status} ${response.statusText}`);
+    }
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+}
 
 function average(values: Array<number | null | undefined>): number {
   // Calculeaza media valorilor numerice valide
