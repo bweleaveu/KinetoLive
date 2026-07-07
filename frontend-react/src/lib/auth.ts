@@ -56,7 +56,7 @@ async function authJson<T>(path: string, body: unknown): Promise<T> {
   });
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    throw new Error(text || `${res.status} ${res.statusText}`);
+    throw new Error(getErrorMessage(text, `${res.status} ${res.statusText}`));
   }
   return res.json() as Promise<T>;
 }
@@ -77,10 +77,35 @@ async function authenticatedJson<T>(
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    throw new Error(text || `${res.status} ${res.statusText}`);
+    throw new Error(getErrorMessage(text, `${res.status} ${res.statusText}`));
   }
 
   return res.json() as Promise<T>;
+}
+
+function getErrorMessage(rawText: string, fallback: string): string {
+  if (!rawText) {
+    return fallback;
+  }
+
+  try {
+    const parsed = JSON.parse(rawText) as {
+      message?: unknown;
+      error?: unknown;
+    };
+
+    if (typeof parsed.message === "string" && parsed.message.trim()) {
+      return parsed.message;
+    }
+
+    if (typeof parsed.error === "string" && parsed.error.trim()) {
+      return parsed.error;
+    }
+  } catch {
+    // Raspunsul nu este JSON, folosim textul brut de mai jos.
+  }
+
+  return rawText;
 }
 
 export const authApi = {

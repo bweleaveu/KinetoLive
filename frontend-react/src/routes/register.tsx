@@ -23,6 +23,12 @@ const TEXT = {
     haveAccount: "Ai deja cont?",
     login: "Conecteaza-te",
     error: "Inregistrarea a esuat.",
+    fullNameRequired: "Completeaza numele complet.",
+    emailRequired: "Completeaza adresa de email.",
+    emailInvalid: "Introdu o adresa de email valida.",
+    passwordRequired: "Completeaza parola.",
+    passwordTooShort: "Parola trebuie sa aiba cel putin 6 caractere.",
+    emailAlreadyExists: "Exista deja un cont cu acest email.",
   },
   en: {
     title: "Create a doctor account",
@@ -35,8 +41,16 @@ const TEXT = {
     haveAccount: "Already have an account?",
     login: "Sign in",
     error: "Registration failed.",
+    fullNameRequired: "Enter your full name.",
+    emailRequired: "Enter your email address.",
+    emailInvalid: "Enter a valid email address.",
+    passwordRequired: "Enter your password.",
+    passwordTooShort: "Password must have at least 6 characters.",
+    emailAlreadyExists: "An account with this email already exists.",
   },
 } as const;
+
+type RegisterServerErrorCode = "emailAlreadyExists" | "generic";
 
 function RegisterPage() {
   const { register, status } = useAuth();
@@ -49,20 +63,52 @@ function RegisterPage() {
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showValidationError, setShowValidationError] = useState(false);
+  const [serverErrorCode, setServerErrorCode] =
+    useState<RegisterServerErrorCode | null>(null);
 
   useEffect(() => {
     if (status === "authenticated") navigate({ to: "/", replace: true });
   }, [status, navigate]);
 
+  useEffect(() => {
+    if (!showValidationError) {
+      return;
+    }
+
+    setError(validateRegisterForm(fullName, email, password, text));
+  }, [showValidationError, fullName, email, password, text]);
+
+  useEffect(() => {
+    if (!serverErrorCode) {
+      return;
+    }
+
+    setError(getRegisterErrorMessage(serverErrorCode, text));
+  }, [serverErrorCode, text]);
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setSubmitting(true);
     setError(null);
+    setServerErrorCode(null);
+
+    const validationError = validateRegisterForm(fullName, email, password, text);
+    if (validationError) {
+      setShowValidationError(true);
+      setError(validationError);
+      return;
+    }
+
+    setShowValidationError(false);
+    setSubmitting(true);
     try {
       await register(fullName, email, password);
       navigate({ to: "/", replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : text.error);
+      setShowValidationError(false);
+      const errorCode = getRegisterErrorCode(err);
+      setServerErrorCode(errorCode);
+      setError(getRegisterErrorMessage(errorCode, text));
     } finally {
       setSubmitting(false);
     }
@@ -86,7 +132,7 @@ function RegisterPage() {
 
         <h1 className="mb-6 text-2xl font-bold text-foreground">{text.title}</h1>
 
-        <form onSubmit={onSubmit} className="space-y-4">
+        <form onSubmit={onSubmit} noValidate className="space-y-4">
           <div>
             <label className="mb-1 block text-sm font-medium text-foreground">
               {text.fullName}
@@ -151,4 +197,60 @@ function RegisterPage() {
       </div>
     </div>
   );
+}
+
+function validateRegisterForm(
+  fullName: string,
+  email: string,
+  password: string,
+  text: (typeof TEXT)[keyof typeof TEXT],
+): string | null {
+  if (!fullName.trim()) {
+    return text.fullNameRequired;
+  }
+
+  if (!email.trim()) {
+    return text.emailRequired;
+  }
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+    return text.emailInvalid;
+  }
+
+  if (!password) {
+    return text.passwordRequired;
+  }
+
+  if (password.length < 6) {
+    return text.passwordTooShort;
+  }
+
+  return null;
+}
+
+function getRegisterErrorCode(err: unknown): RegisterServerErrorCode {
+  const message = err instanceof Error ? err.message : "";
+  const normalizedMessage = message.toLowerCase();
+
+  if (
+    normalizedMessage.includes("email") &&
+    (normalizedMessage.includes("exista") ||
+      normalizedMessage.includes("exist") ||
+      normalizedMessage.includes("already"))
+  ) {
+    return "emailAlreadyExists";
+  }
+
+  return "generic";
+}
+
+function getRegisterErrorMessage(
+  errorCode: RegisterServerErrorCode,
+  text: (typeof TEXT)[keyof typeof TEXT],
+): string {
+  if (errorCode === "emailAlreadyExists") {
+    return text.emailAlreadyExists;
+  }
+
+  return text.error;
 }

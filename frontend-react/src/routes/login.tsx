@@ -22,6 +22,10 @@ const TEXT = {
     noAccount: "Nu ai cont?",
     register: "Creeaza cont",
     error: "Email sau parola incorecte.",
+    emailRequired: "Completeaza adresa de email.",
+    emailInvalid: "Introdu o adresa de email valida.",
+    passwordRequired: "Completeaza parola.",
+    passwordTooShort: "Parola trebuie sa aiba cel putin 6 caractere.",
   },
   en: {
     title: "Welcome back",
@@ -33,8 +37,19 @@ const TEXT = {
     noAccount: "No account yet?",
     register: "Create one",
     error: "Invalid email or password.",
+    emailRequired: "Enter your email address.",
+    emailInvalid: "Enter a valid email address.",
+    passwordRequired: "Enter your password.",
+    passwordTooShort: "Password must have at least 6 characters.",
   },
 } as const;
+
+type LoginErrorCode =
+  | "invalidCredentials"
+  | "emailRequired"
+  | "emailInvalid"
+  | "passwordRequired"
+  | "passwordTooShort";
 
 function LoginPage() {
   const { login, status } = useAuth();
@@ -45,7 +60,8 @@ function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<LoginErrorCode | null>(null);
+  const error = errorCode ? getLoginErrorMessage(errorCode, text) : null;
 
   useEffect(() => {
     if (status === "authenticated") navigate({ to: "/", replace: true });
@@ -53,13 +69,20 @@ function LoginPage() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setErrorCode(null);
+
+    const validationError = validateLoginForm(email, password);
+    if (validationError) {
+      setErrorCode(validationError);
+      return;
+    }
+
     setSubmitting(true);
-    setError(null);
     try {
       await login(email, password);
       navigate({ to: "/", replace: true });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : text.error);
+    } catch {
+      setErrorCode("invalidCredentials");
     } finally {
       setSubmitting(false);
     }
@@ -83,7 +106,7 @@ function LoginPage() {
 
         <h1 className="mb-6 text-2xl font-bold text-foreground">{text.title}</h1>
 
-        <form onSubmit={onSubmit} className="space-y-4">
+        <form onSubmit={onSubmit} noValidate className="space-y-4">
           <div>
             <label className="mb-1 block text-sm font-medium text-foreground">
               {text.email}
@@ -135,4 +158,43 @@ function LoginPage() {
       </div>
     </div>
   );
+}
+
+function validateLoginForm(email: string, password: string): LoginErrorCode | null {
+  if (!email.trim()) {
+    return "emailRequired";
+  }
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+    return "emailInvalid";
+  }
+
+  if (!password) {
+    return "passwordRequired";
+  }
+
+  if (password.length < 6) {
+    return "passwordTooShort";
+  }
+
+  return null;
+}
+
+function getLoginErrorMessage(
+  errorCode: LoginErrorCode,
+  text: (typeof TEXT)[keyof typeof TEXT],
+): string {
+  switch (errorCode) {
+    case "emailRequired":
+      return text.emailRequired;
+    case "emailInvalid":
+      return text.emailInvalid;
+    case "passwordRequired":
+      return text.passwordRequired;
+    case "passwordTooShort":
+      return text.passwordTooShort;
+    case "invalidCredentials":
+    default:
+      return text.error;
+  }
 }

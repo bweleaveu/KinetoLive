@@ -36,6 +36,7 @@ import {
 
 import { SectionCard, StatCard } from "@/components/StatCard";
 import { useAppLanguage } from "@/hooks/useAppLanguage";
+import { useAuth } from "@/hooks/useAuth";
 import { useSelectedPatient } from "@/hooks/useSelectedPatient";
 import {
   api,
@@ -228,6 +229,7 @@ type DashboardText = (typeof DASHBOARD_TEXT)[keyof typeof DASHBOARD_TEXT];
 
 function DashboardPage() {
   const { language } = useAppLanguage();
+  const { status: authStatus, token } = useAuth();
   const text = DASHBOARD_TEXT[language];
   const {
     selectedPatient,
@@ -250,7 +252,11 @@ function DashboardPage() {
     let active = true;
 
     async function loadDashboardData() {
-      if (patientLoading) {
+      if (authStatus !== "authenticated" || !token || patientLoading) {
+        setSessions([]);
+        setBackendOnline(null);
+        setMlServiceStatus(null);
+        setLoading(false);
         return;
       }
 
@@ -313,7 +319,7 @@ function DashboardPage() {
     return () => {
       active = false;
     };
-  }, [patientLoading, selectedPatientId]);
+  }, [authStatus, token, patientLoading, selectedPatientId]);
 
   const stats = useMemo(() => {
     // Calculeaza indicatorii principali pentru Dashboard
